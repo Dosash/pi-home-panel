@@ -1,0 +1,12 @@
+[Unit]
+Description=Let Wi-Fi hotspot clients through Docker FORWARD policy
+After=docker.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/home/dosash/project/network/hotspot-forward.sh
+
+[Install]
+WantedBy=docker.service

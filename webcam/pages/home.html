@@ -1,0 +1,2342 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Дом</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #181b21;
+    --panel-2: #1f232a;
+    --line: #2a2f37;
+    --text: #e6e8eb;
+    --muted: #8b929c;
+    --accent: #58a6ff;
+    --ok: #3fb950;
+    --warn: #d29922;
+    --bad: #f85149;
+    --btn: #262a31;
+    --btn-hover: #30353d;
+    /* графики и индикаторы: серия и статусы из палитры dataviz, проверены на фоне --panel */
+    --series: #3987e5;
+    --track: #0d366b;
+    --status-good: #0ca30c;
+    --status-warning: #fab219;
+    --status-serious: #ec835a;
+    --status-critical: #d03b3b;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 { margin: 0; font-size: 18px; flex: 1; }
+  .button {
+    background: var(--btn);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 7px 12px;
+    text-decoration: none;
+    font-size: 14px;
+  }
+  .button:hover { background: var(--btn-hover); }
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 16px 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .tile {
+    display: flex;
+    flex-direction: column;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    color: inherit;
+    text-decoration: none;
+    transition: border-color .15s, transform .15s;
+  }
+  .tile:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .visual {
+    aspect-ratio: 16 / 9;
+    background: #000 center / cover no-repeat;
+    display: grid;
+    place-items: center;
+    font-size: 56px;
+    color: var(--muted);
+  }
+  .visual.icon { background: var(--panel-2); }
+  .body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 6px; }
+  .title { font-size: 17px; font-weight: 600; }
+  .desc { color: var(--muted); font-size: 13px; }
+  .state { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.ok { background: var(--ok); }
+  .dot.warn { background: var(--warn); }
+  .dot.bad { background: var(--bad); }
+
+  /* ---------- движение ---------- */
+  .live { display: none; align-items: center; gap: 6px; font-size: 13px; align-self: center; }
+  .live.show { display: inline-flex; }
+  .live .icon { color: var(--status-critical); animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .events {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 12px;
+  }
+  .event {
+    all: unset;
+    box-sizing: border-box;
+    cursor: pointer;
+    background: var(--panel-2);
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid transparent;
+  }
+  .event:hover { border-color: var(--accent); }
+  .event:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .event .thumb {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: #000 center / cover no-repeat;
+  }
+  .event .dur {
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+    background: rgb(0 0 0 / .7);
+    color: #fff;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  .event .play {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: 28px;
+    color: #fff;
+    opacity: 0;
+    background: rgb(0 0 0 / .3);
+    transition: opacity .15s;
+  }
+  .event:hover .play, .event:focus-visible .play { opacity: 1; }
+  .event .info { padding: 8px 10px 10px; }
+  .event .time { font-size: 15px; font-weight: 600; }
+  .event .date { color: var(--muted); font-size: 12px; }
+  .empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
+
+  dialog#player {
+    width: min(960px, calc(100vw - 32px));
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--panel);
+    color: var(--text);
+    overflow: hidden;
+  }
+  dialog#player::backdrop { background: rgb(0 0 0 / .75); }
+  .player-head, .player-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    flex-wrap: wrap;
+  }
+  .player-head .title { font-weight: 600; flex: 1; }
+  #pl-video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+  .player-bar .part { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .player-bar .spacer { flex: 1; }
+  .player-bar button, .player-head button {
+    background: var(--btn);
+    color: var(--text);
+    border: 0;
+    border-radius: 6px;
+    padding: 7px 12px;
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .player-bar button:hover, .player-head button:hover { background: var(--btn-hover); }
+  .player-bar button:disabled { opacity: .4; cursor: default; }
+
+  /* ---------- интернет и модем ---------- */
+  .bars { display: flex; align-items: flex-end; gap: 3px; height: 22px; }
+  .bars span { width: 7px; border-radius: 2px; background: var(--track); }
+  .bars span.on { background: var(--series); }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .controls label { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+  .controls select, .controls button {
+    background: var(--btn);
+    color: var(--text);
+    border: 0;
+    border-radius: 6px;
+    padding: 7px 10px;
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .controls button:hover, .controls select:hover { background: var(--btn-hover); }
+  .controls :disabled { opacity: .5; cursor: default; }
+  .controls .msg { color: var(--muted); font-size: 13px; }
+  .controls .msg.error { color: var(--status-critical); }
+  .switch input { width: 36px; height: 20px; appearance: none; border-radius: 10px; background: var(--btn);
+                  position: relative; cursor: pointer; transition: background .15s; margin: 0; }
+  .switch input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+                         border-radius: 50%; background: var(--text); transition: left .15s; }
+  .switch input:checked { background: var(--series); }
+  .switch input:checked::after { left: 18px; }
+  .switch input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .subhead {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .subhead h3 { margin: 0; font-size: 15px; }
+  .subhead .meta { color: var(--muted); font-size: 13px; }
+  .stat a { color: var(--accent); font-size: 14px; text-decoration: none; overflow-wrap: anywhere; }
+  .stat a:hover { text-decoration: underline; }
+  .stat .sub.lines { white-space: pre-line; font-variant-numeric: tabular-nums; }
+
+  /* ---------- трей: разделы под плитками сворачиваются в значки ---------- */
+  .tray {
+    max-width: 1100px;
+    margin: 0 auto 24px;
+    padding: 0 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 7px 12px 7px 14px;
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+  }
+  .chip:hover { border-color: var(--accent); }
+  .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .chip[aria-expanded="true"] { background: var(--panel-2); border-color: var(--accent); }
+  .chip .chip-title { font-weight: 600; }
+  .chip .chip-status { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+  .chip .chip-status .icon { font-size: 12px; line-height: 1; }
+  .chip .chip-status.rec::before { content: "●"; color: var(--status-critical); font-size: 12px;
+                                   animation: blink 1s steps(2) infinite; }
+  .chip .chev { color: var(--muted); transition: transform .3s ease; }
+  .chip[aria-expanded="true"] .chev { transform: rotate(180deg); }
+  /* Плавно: строка сетки 1fr ↔ 0fr тянет высоту за содержимым, без замеров в JS. */
+  .fold {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows .35s ease, opacity .3s ease, margin-bottom .35s ease, visibility 0s;
+  }
+  .fold > .fold-inner { min-height: 0; overflow: hidden; }
+  .fold.folded {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    margin-bottom: 0;
+    visibility: hidden;  /* после анимации: свёрнутое не ловит клики и не читается */
+    transition: grid-template-rows .35s ease, opacity .25s ease, margin-bottom .35s ease, visibility 0s .35s;
+  }
+  .tray-init .fold, .tray-init .chip .chev { transition: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .fold, .fold.folded, .chip .chev { transition: none; }
+  }
+  .block-head .minimize {
+    align-self: center;
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 28px;
+    background: var(--btn);
+    color: var(--text);
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .block-head .minimize:hover { background: var(--btn-hover); }
+  .block-head .minimize:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- AdGuard Home ---------- */
+  .ag-bars { display: block; width: 100%; height: 64px; margin-top: 6px; }
+  .ag-bars .total { fill: var(--track); }
+  .ag-bars .blocked { fill: var(--series); }
+  .ag-axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 4px; }
+  .ag-legend::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 2px;
+                       background: var(--series); margin: 0 4px 0 2px; }
+  .ag-sub { color: var(--muted); }
+
+  /* ---------- Bluetooth ---------- */
+  button.button { border: 0; font: inherit; font-size: 14px; cursor: pointer; }
+  button.button:hover { background: var(--btn-hover); }
+  button.button:disabled { opacity: .5; cursor: default; }
+  .bt-msg { font-size: 14px; }
+  .bt-msg:empty { display: none; }
+  .bt-msg.error { color: var(--status-critical); }
+  .bt-msg .code { font-size: 18px; font-weight: 700; letter-spacing: .08em; font-variant-numeric: tabular-nums; }
+  .panel2 .title a { color: var(--accent); font-weight: 400; text-decoration: none; margin-left: 8px; }
+  .panel2 .title a:hover { text-decoration: underline; }
+  .bt-row {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto auto;
+    gap: 10px;
+    align-items: center;
+    padding: 7px 0;
+    border-top: 1px solid var(--line);
+  }
+  .bt-row:first-child { border-top: 0; }
+  .bt-row .ico { font-size: 18px; text-align: center; }
+  .bt-row .nm { min-width: 0; }
+  .bt-row .nm b { display: block; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bt-row .nm span { color: var(--muted); font-size: 12px; }
+  .bt-row .sig { color: var(--muted); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .bt-row .acts { display: flex; gap: 6px; justify-content: flex-end; }
+  .bt-row .acts button, .bt-more {
+    background: var(--btn);
+    color: var(--text);
+    border: 0;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .bt-row .acts button:hover, .bt-more:hover { background: var(--btn-hover); }
+  .bt-row .acts button:disabled { opacity: .5; cursor: default; }
+  .bt-more { margin-top: 8px; }
+  .sensors { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+  .sensor {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+  .sensor .head { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sensor .vals { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 18px; font-weight: 600;
+                  font-variant-numeric: tabular-nums; }
+  .sensor .vals small { display: block; color: var(--muted); font-size: 11px; font-weight: 400; }
+  .sensor .sub { color: var(--muted); font-size: 12px; }
+  .empty { color: var(--muted); font-size: 13px; }
+  .sensors > .empty { grid-column: 1 / -1; }
+  @media (max-width: 520px) {
+    .bt-row { grid-template-columns: 28px minmax(0, 1fr) auto; }
+    .bt-row .acts { grid-column: 2 / -1; justify-content: flex-start; }
+  }
+
+  /* ---------- Wi-Fi ---------- */
+  .controls input[type=text], .controls input[type=password] {
+    background: var(--btn);
+    color: var(--text);
+    border: 0;
+    border-radius: 6px;
+    padding: 7px 10px;
+    font: inherit;
+    font-size: 14px;
+    width: 13em;
+    max-width: 100%;
+  }
+  .controls input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .scroll-x { overflow-x: auto; }
+  #wf-clients td { white-space: nowrap; }
+  #wf-clients td.num .icon { margin-right: 4px; }
+  .who .dev { display: block; }
+  .who .addr { display: block; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  td.empty { color: var(--muted); }
+  .wifi-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: start; }
+  .wifi-qr { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 220px; box-sizing: border-box; }
+  .wifi-qr .title { align-self: stretch; margin-bottom: 0; }
+  .wifi-qr img { display: block; width: 180px; height: 180px; background: #fff; border-radius: 8px; padding: 4px;
+                 box-sizing: border-box; image-rendering: pixelated; }
+  .wifi-qr img[hidden] { display: none; }
+  .wifi-qr .qr-note { color: var(--muted); font-size: 12px; text-align: center; max-width: 190px; }
+  @media (max-width: 640px) {
+    .wifi-row { grid-template-columns: minmax(0, 1fr); }
+    .wifi-qr { width: auto; }
+  }
+
+  /* ---------- мониторинг Pi ---------- */
+  .block {
+    max-width: 1100px;
+    margin: 0 auto 24px;
+    padding: 0 16px;
+  }
+  .block-box {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--panel);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .block-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .block-head h2 { margin: 0; font-size: 16px; }
+  .block-head .meta { color: var(--muted); font-size: 13px; }
+  .block-head .spacer { flex: 1; }
+  .block-head .button { align-self: center; }
+  .block-box.stale .stats, .block-box.stale .charts, .block-box.stale .details { opacity: .45; }
+  .block-box.stale .meta { color: var(--status-warning); }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+  }
+  .stat {
+    background: var(--panel-2);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .stat .label { color: var(--muted); font-size: 12px; }
+  .stat .value { font-size: 20px; font-weight: 600; white-space: nowrap; }
+  .stat .sub { color: var(--muted); font-size: 12px; }
+  .stat .value.net { font-size: 15px; }
+  .status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text); }
+  .status .icon { font-size: 12px; line-height: 1; }
+  .meter { height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; margin-top: 2px; }
+  .meter div { height: 100%; border-radius: 3px; background: var(--series); width: 0; transition: width .3s; }
+  .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  .chart { background: var(--panel-2); border-radius: 8px; padding: 10px 12px 6px; min-width: 0; }
+  .chart .title { font-size: 13px; }
+  .chart .subtitle { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .plot { position: relative; height: 150px; margin-top: 6px; }
+  .plot svg { display: block; width: 100%; height: 100%; overflow: visible; outline: none; }
+  .plot svg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+  .plot .tick { fill: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+  .plot .grid { stroke: var(--line); stroke-width: 1; }
+  .plot .end-label { fill: var(--text); font-size: 12px; font-weight: 600; }
+  .tooltip {
+    position: absolute;
+    top: 0;
+    pointer-events: none;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 12px;
+    white-space: nowrap;
+    display: none;
+    transform: translateX(-50%);
+  }
+  .tooltip strong { display: block; font-size: 13px; }
+  .tooltip span { color: var(--muted); }
+  .details { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  .panel2 { background: var(--panel-2); border-radius: 8px; padding: 10px 12px; }
+  .panel2 .title { font-size: 13px; margin-bottom: 8px; }
+  .core { display: grid; grid-template-columns: 64px 1fr 48px; align-items: center; gap: 8px; font-size: 12px; margin: 6px 0; }
+  .core .pct { text-align: right; font-variant-numeric: tabular-nums; }
+  .core .name { color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-weight: 400; font-size: 12px; padding: 0 0 4px; }
+  td { padding: 4px 0; border-top: 1px solid var(--line); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; padding-left: 12px; }
+  td.name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 0; width: 60%; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Дом</h1>
+  <a class="button" href="/logout" id="logout">Выйти</a>
+</header>
+<main>
+  <a class="tile" href="/camera" target="pi-camera">
+    <div class="visual" id="cam-thumb"></div>
+    <div class="body">
+      <div class="title">Камера</div>
+      <div class="desc">Эфир со звуком и записи по движению</div>
+      <div class="state"><span class="dot" id="cam-dot"></span><span id="cam-state">…</span></div>
+    </div>
+  </a>
+  <a class="tile" id="ha-link" href="#" target="ha-main-window">
+    <div class="visual icon">🏠</div>
+    <div class="body">
+      <div class="title">Устройства</div>
+      <div class="desc">Home Assistant: датчики и устройства по Wi-Fi, Bluetooth и Zigbee, автоматизации</div>
+      <div class="state"><span class="dot" id="ha-dot"></span><span id="ha-state">…</span></div>
+    </div>
+  </a>
+  <a class="tile" href="/z2m/" target="pi-zigbee">
+    <div class="visual icon">📡</div>
+    <div class="body">
+      <div class="title">Zigbee</div>
+      <div class="desc">Zigbee2MQTT: добавление Zigbee-датчиков, карта сети, прошивки</div>
+      <div class="state"><span class="dot" id="zb-dot"></span><span id="zb-state">…</span></div>
+    </div>
+  </a>
+</main>
+<nav class="tray" id="tray" aria-label="Разделы">
+  <button class="chip" type="button" data-section="events" aria-controls="events" aria-expanded="false">
+    <span class="chip-title">Движение</span>
+    <span class="chip-status" id="tray-events"></span>
+    <svg class="chev" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M3.5 6l4.5 4.5 4.5-4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button class="chip" type="button" data-section="internet" aria-controls="internet" aria-expanded="false">
+    <span class="chip-title">Интернет</span>
+    <span class="chip-status" id="tray-internet"></span>
+    <svg class="chev" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M3.5 6l4.5 4.5 4.5-4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button class="chip" type="button" data-section="wifi" aria-controls="wifi" aria-expanded="false">
+    <span class="chip-title">Wi-Fi</span>
+    <span class="chip-status" id="tray-wifi"></span>
+    <svg class="chev" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M3.5 6l4.5 4.5 4.5-4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button class="chip" type="button" data-section="adguard" aria-controls="adguard" aria-expanded="false">
+    <span class="chip-title">AdGuard</span>
+    <span class="chip-status" id="tray-adguard"></span>
+    <svg class="chev" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M3.5 6l4.5 4.5 4.5-4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button class="chip" type="button" data-section="bluetooth" aria-controls="bluetooth" aria-expanded="false">
+    <span class="chip-title">Bluetooth</span>
+    <span class="chip-status" id="tray-bluetooth"></span>
+    <svg class="chev" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M3.5 6l4.5 4.5 4.5-4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button class="chip" type="button" data-section="system" aria-controls="system" aria-expanded="false">
+    <span class="chip-title">Raspberry Pi</span>
+    <span class="chip-status" id="tray-system"></span>
+    <svg class="chev" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M3.5 6l4.5 4.5 4.5-4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+</nav>
+<section class="block fold folded" id="events" aria-labelledby="ev-title" inert>
+<div class="fold-inner">
+  <div class="block-box">
+    <div class="block-head">
+      <h2 id="ev-title">Движение</h2>
+      <span class="meta" id="ev-meta"></span>
+      <span class="live" id="ev-live"><span class="icon">●</span><span id="ev-live-text">идёт запись</span></span>
+      <span class="spacer"></span>
+      <a class="button" href="/camera#rec" target="pi-camera">Все записи</a>
+      <button class="minimize" type="button" data-section="events" aria-label="Свернуть в трей" title="Свернуть в трей"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 10l4.5-4.5 4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+    <div class="events" id="ev-list"></div>
+  </div>
+</div>
+</section>
+<dialog id="player" aria-labelledby="pl-title">
+  <div class="player-head">
+    <span class="title" id="pl-title"></span>
+    <button id="pl-close" aria-label="Закрыть">✕</button>
+  </div>
+  <video id="pl-video" controls playsinline preload="metadata"></video>
+  <div class="player-bar">
+    <button id="pl-prev">◀ Часть</button>
+    <span class="part" id="pl-part"></span>
+    <button id="pl-next">Часть ▶</button>
+    <span class="spacer"></span>
+    <a class="button" id="pl-open" target="pi-camera">Открыть в записях</a>
+    <a class="button" id="pl-download" download>Скачать</a>
+  </div>
+</dialog>
+<section class="block fold folded" id="internet" aria-labelledby="net-title" inert>
+<div class="fold-inner">
+  <div class="block-box" id="net-box">
+    <div class="block-head">
+      <h2 id="net-title">Интернет</h2>
+      <span class="meta" id="net-meta">загрузка…</span>
+      <button class="minimize" type="button" data-section="internet" aria-label="Свернуть в трей" title="Свернуть в трей"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 10l4.5-4.5 4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <span class="label">Сейчас через</span>
+        <span class="value" id="net-active">—</span>
+        <span class="sub" id="net-active-sub"></span>
+      </div>
+      <div class="stat">
+        <span class="label">Wi-Fi</span>
+        <span class="status" id="net-wifi"></span>
+        <span class="sub" id="net-wifi-sub">основной канал</span>
+      </div>
+      <div class="stat">
+        <span class="label">Кабель</span>
+        <span class="value" id="net-cable">—</span>
+        <span class="sub" id="net-cable-sub"></span>
+      </div>
+      <div class="stat">
+        <span class="label">LTE-модем</span>
+        <span class="value" id="net-operator">—</span>
+        <span class="status" id="net-modem"></span>
+      </div>
+      <div class="stat">
+        <span class="label">Сигнал</span>
+        <div class="bars" id="net-bars" role="img"><span></span><span></span><span></span><span></span><span></span></div>
+        <span class="sub" id="net-signal"></span>
+      </div>
+      <div class="stat">
+        <span class="label">Скорость модема</span>
+        <span class="value net" id="net-rx">—</span>
+        <span class="value net" id="net-tx">—</span>
+      </div>
+      <div class="stat">
+        <span class="label">Трафик модема за месяц</span>
+        <span class="value" id="net-month">—</span>
+        <span class="sub" id="net-session"></span>
+      </div>
+    </div>
+    <div class="controls">
+      <label class="switch"><input type="checkbox" id="net-data"> Мобильные данные</label>
+      <label>Режим сети
+        <select id="net-mode">
+          <option value="auto">Авто (4G → 3G → 2G)</option>
+          <option value="4g">Только 4G</option>
+          <option value="3g">Только 3G</option>
+          <option value="2g">Только 2G</option>
+        </select>
+      </label>
+      <button id="net-reconnect">Переподключить</button>
+      <button id="net-reboot">Перезагрузить модем</button>
+      <span class="msg" id="net-msg" role="status"></span>
+    </div>
+    <div class="subhead">
+      <h3>ZeroTier — доступ извне</h3>
+      <span class="meta" id="zt-meta"></span>
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <span class="label">Состояние</span>
+        <span class="status" id="zt-state"></span>
+        <span class="sub" id="zt-state-sub"></span>
+      </div>
+      <div class="stat">
+        <span class="label">Адрес Pi в ZeroTier</span>
+        <span class="value" id="zt-ip">—</span>
+        <span class="sub" id="zt-net"></span>
+      </div>
+      <div class="stat">
+        <span class="label">Открыть через ZeroTier</span>
+        <a id="zt-panel" hidden></a>
+        <a id="zt-ha" hidden></a>
+      </div>
+      <div class="stat">
+        <span class="label">Устройства на связи</span>
+        <span class="value" id="zt-count">—</span>
+        <span class="sub lines" id="zt-devices"></span>
+      </div>
+      <div class="stat">
+        <span class="label">Трафик ZeroTier</span>
+        <span class="value net" id="zt-rx">—</span>
+        <span class="value net" id="zt-tx">—</span>
+        <span class="sub" id="zt-total"></span>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+<section class="block fold folded" id="wifi" aria-labelledby="wifi-title" inert>
+<div class="fold-inner">
+  <div class="block-box" id="wifi-box">
+    <div class="block-head">
+      <h2 id="wifi-title">Wi-Fi</h2>
+      <span class="meta" id="wf-meta">загрузка…</span>
+      <button class="minimize" type="button" data-section="wifi" aria-label="Свернуть в трей" title="Свернуть в трей"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 10l4.5-4.5 4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <span class="label">Сеть</span>
+        <span class="value" id="wf-ssid">—</span>
+        <span class="status" id="wf-state"></span>
+      </div>
+      <div class="stat">
+        <span class="label">Канал</span>
+        <span class="value" id="wf-channel">—</span>
+        <span class="sub" id="wf-channel-sub"></span>
+      </div>
+      <div class="stat">
+        <span class="label">Подключено</span>
+        <span class="value" id="wf-count">—</span>
+        <span class="sub" id="wf-count-sub"></span>
+      </div>
+      <div class="stat">
+        <span class="label">Скорость сейчас</span>
+        <span class="value net" id="wf-down">—</span>
+        <span class="value net" id="wf-up">—</span>
+      </div>
+      <div class="stat">
+        <span class="label">Трафик с включения Pi</span>
+        <span class="value" id="wf-total">—</span>
+        <span class="sub" id="wf-total-sub"></span>
+      </div>
+    </div>
+    <div class="wifi-row">
+    <div class="panel2">
+      <div class="title">Устройства в сети</div>
+      <div class="scroll-x">
+        <table>
+          <thead><tr>
+            <th>Устройство</th>
+            <th class="num">Сигнал</th>
+            <th class="num">Связь</th>
+            <th class="num">Сейчас ↓ / ↑</th>
+            <th class="num">Всего ↓ / ↑</th>
+            <th class="num">В сети</th>
+          </tr></thead>
+          <tbody id="wf-clients"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="panel2 wifi-qr">
+      <div class="title">Подключить телефон</div>
+      <img id="wf-qr" alt="QR-код для подключения к Wi-Fi Pi" hidden>
+      <div class="qr-note" id="wf-qr-note">загрузка…</div>
+    </div>
+    </div>
+    <form class="controls" id="wf-form" autocomplete="off">
+      <label>Имя сети <input type="text" id="wf-in-ssid" maxlength="32" required spellcheck="false"></label>
+      <label>Пароль
+        <input type="password" id="wf-in-pass" minlength="8" maxlength="63" autocomplete="new-password"
+               spellcheck="false" placeholder="не менять">
+        <button type="button" id="wf-show" aria-pressed="false">Показать</button>
+      </label>
+      <label>Диапазон
+        <select id="wf-in-band">
+          <option value="bg">2,4 ГГц — дальше, через стены</option>
+          <option value="a">5 ГГц — быстрее, но ближе</option>
+        </select>
+      </label>
+      <label>Канал <select id="wf-in-channel"></select></label>
+      <button type="submit" id="wf-save">Сохранить</button>
+      <span class="msg" id="wf-msg" role="status"></span>
+    </form>
+  </div>
+</div>
+</section>
+<section class="block fold folded" id="adguard" aria-labelledby="ag-title" inert>
+<div class="fold-inner">
+  <div class="block-box" id="ag-box">
+    <div class="block-head">
+      <h2 id="ag-title">AdGuard Home</h2>
+      <span class="meta" id="ag-meta">загрузка…</span>
+      <span class="spacer"></span>
+      <a class="button" id="ag-open" href="#" target="adguard">Открыть AdGuard Home</a>
+      <button class="minimize" type="button" data-section="adguard" aria-label="Свернуть в трей" title="Свернуть в трей"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 10l4.5-4.5 4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <span class="label">Защита</span>
+        <span class="status" id="ag-state"></span>
+        <span class="sub" id="ag-state-sub"></span>
+      </div>
+      <div class="stat">
+        <span class="label">Запросов за сутки</span>
+        <span class="value" id="ag-queries">—</span>
+        <span class="sub">от устройств в Wi-Fi Pi</span>
+      </div>
+      <div class="stat">
+        <span class="label">Заблокировано</span>
+        <span class="value" id="ag-blocked">—</span>
+        <span class="sub" id="ag-blocked-sub"></span>
+      </div>
+      <div class="stat">
+        <span class="label">Ответ DNS</span>
+        <span class="value" id="ag-avg">—</span>
+        <span class="sub">в среднем, с учётом кэша</span>
+      </div>
+    </div>
+    <div class="panel2">
+      <div class="title">По часам: все запросы и <span class="ag-legend">заблокированные</span></div>
+      <svg class="ag-bars" id="ag-bars" viewBox="0 0 240 60" preserveAspectRatio="none" role="img"></svg>
+      <div class="ag-axis"><span>сутки назад</span><span>сейчас</span></div>
+    </div>
+    <div class="details">
+      <div class="panel2">
+        <div class="title">Чаще всего блокируется</div>
+        <table><tbody id="ag-top-blocked"></tbody></table>
+      </div>
+      <div class="panel2">
+        <div class="title">Кто больше всех обращается</div>
+        <table><tbody id="ag-top-clients"></tbody></table>
+      </div>
+    </div>
+    <div class="controls">
+      <button type="button" id="ag-pause10">Пауза 10 мин</button>
+      <button type="button" id="ag-pause60">Пауза 1 час</button>
+      <button type="button" id="ag-resume" hidden>Включить защиту</button>
+      <span class="msg" id="ag-msg" role="status">если какой-то сайт перестал работать — поставьте паузу и проверьте</span>
+    </div>
+  </div>
+</div>
+</section>
+<section class="block fold folded" id="bluetooth" aria-labelledby="bt-title" inert>
+<div class="fold-inner">
+  <div class="block-box" id="bt-box">
+    <div class="block-head">
+      <h2 id="bt-title">Bluetooth</h2>
+      <span class="meta" id="bt-meta">загрузка…</span>
+      <span class="spacer"></span>
+      <button class="button" type="button" id="bt-scan">Искать устройства</button>
+      <button class="minimize" type="button" data-section="bluetooth" aria-label="Свернуть в трей" title="Свернуть в трей"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 10l4.5-4.5 4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+    <div class="bt-msg" id="bt-msg" role="status"></div>
+    <div class="panel2">
+      <div class="title">Мои устройства</div>
+      <div id="bt-mine"></div>
+    </div>
+    <div class="panel2">
+      <div class="title">Датчики<a id="bt-ha" href="#" target="ha-main-window">добавить в Home Assistant для автоматизаций</a></div>
+      <div class="sensors" id="bt-sensors"></div>
+    </div>
+    <div class="panel2">
+      <div class="title">Рядом</div>
+      <div id="bt-near"></div>
+      <button class="bt-more" type="button" id="bt-more" hidden></button>
+    </div>
+  </div>
+</div>
+</section>
+<section class="block fold folded" id="system" aria-labelledby="sysmon-title" inert>
+<div class="fold-inner">
+  <div class="block-box" id="sysmon-box">
+    <div class="block-head">
+      <h2 id="sysmon-title">Raspberry Pi</h2>
+      <span class="meta" id="sm-meta">загрузка…</span>
+      <button class="minimize" type="button" data-section="system" aria-label="Свернуть в трей" title="Свернуть в трей"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 10l4.5-4.5 4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <span class="label">Температура</span>
+        <span class="value" id="sm-temp">—</span>
+        <span class="status" id="sm-temp-status"></span>
+      </div>
+      <div class="stat">
+        <span class="label">Процессор</span>
+        <span class="value" id="sm-cpu">—</span>
+        <span class="sub" id="sm-cpu-sub"></span>
+      </div>
+      <div class="stat">
+        <span class="label">Память</span>
+        <span class="value" id="sm-mem">—</span>
+        <div class="meter"><div id="sm-mem-bar"></div></div>
+      </div>
+      <div class="stat">
+        <span class="label">Диск</span>
+        <span class="value" id="sm-disk">—</span>
+        <div class="meter"><div id="sm-disk-bar"></div></div>
+      </div>
+      <div class="stat">
+        <span class="label">Сеть</span>
+        <span class="value net" id="sm-net-rx" title="Приём">—</span>
+        <span class="value net" id="sm-net-tx" title="Отдача">—</span>
+      </div>
+      <div class="stat">
+        <span class="label">Питание и частота</span>
+        <span class="status" id="sm-throttle"></span>
+        <span class="sub" id="sm-throttle-sub"></span>
+      </div>
+    </div>
+    <div class="charts">
+      <div class="chart">
+        <div class="title">Температура, °C</div>
+        <div class="subtitle" id="ch-temp-sub"></div>
+        <div class="plot" id="ch-temp"></div>
+      </div>
+      <div class="chart">
+        <div class="title">Загрузка процессора, %</div>
+        <div class="subtitle" id="ch-cpu-sub"></div>
+        <div class="plot" id="ch-cpu"></div>
+      </div>
+    </div>
+    <div class="details">
+      <div class="panel2">
+        <div class="title">Ядра процессора</div>
+        <div id="sm-cores"></div>
+      </div>
+      <div class="panel2">
+        <div class="title">Больше всего нагружают</div>
+        <table>
+          <thead><tr><th>Процесс</th><th class="num">CPU</th><th class="num">Память</th></tr></thead>
+          <tbody id="sm-procs"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  // AbortSignal.timeout есть не везде (iOS до 16 — частые настенные планшеты): там таймер вручную.
+  function timeout(ms) {
+    if (AbortSignal.timeout) return AbortSignal.timeout(ms);
+    const c = new AbortController();
+    setTimeout(() => c.abort(), ms);
+    return c.signal;
+  }
+
+  async function api(url, options = {}) {
+    // Повисший сервер не должен выглядеть «свежим»: через 8 с считаем, что связи нет.
+    const r = await fetch(url, { cache: "no-store", signal: timeout(8000), ...options });
+    if (r.status === 401) {
+      location.href = "/login?next=" + encodeURIComponent(location.pathname + location.hash);
+      throw new Error("login required");
+    }
+    // Сервер объясняет ошибку в {"error": ...} — её и показываем, а не голый код.
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
+    return r.json();
+  }
+
+  let wasRecording = null;
+  let camLive = null;  // "rec" — идёт запись, "motion" — движение, null — тихо
+  function eventsChip() {
+    const today = events.filter((e) => dayLabel(e.start) === "Сегодня").length;
+    trayStatus("events", null, camLive === "rec" ? "идёт запись" : camLive === "motion" ? "движение"
+      : today ? `сегодня ${today} ${plural(today, "событие", "события", "событий")}`
+      : events.length ? `всего ${events.length}` : "событий нет");
+    $("tray-events").classList.toggle("rec", Boolean(camLive));
+  }
+
+  function setState(prefix, cls, text) {
+    $(prefix + "-dot").className = "dot " + cls;
+    $(prefix + "-state").textContent = text;
+  }
+
+  async function refresh() {
+    let s;
+    try {
+      s = await api("api/overview");
+    } catch {
+      setState("cam", "bad", "нет связи с Pi");
+      return;
+    }
+    if (!s.auth) $("logout").hidden = true;
+
+    const cam = s.camera;
+    const live = cam.state === "streaming" && (cam.recording || cam.motion);
+    $("ev-live").classList.toggle("show", Boolean(live));
+    $("ev-live-text").textContent = cam.recording ? "идёт запись" : "движение";
+    camLive = live ? (cam.recording ? "rec" : "motion") : null;
+    eventsChip();
+    // Ролик дописан — в списке событий появится новый.
+    if (wasRecording && !cam.recording) loadEvents();
+    wasRecording = cam.recording;
+    if (cam.state === "streaming") {
+      setState("cam", cam.recording ? "bad" : "ok",
+               cam.recording ? "идёт запись" : cam.motion ? "движение" : "работает");
+      $("cam-thumb").style.backgroundImage = `url("snapshot.jpg?small=1&t=${Date.now()}")`;
+    } else {
+      setState("cam", "bad", cam.state === "no_camera" ? "камера не подключена" : "включается…");
+    }
+
+    $("ha-link").href = s.ha_url;
+    $("bt-ha").href = s.ha_url + "config/integrations/dashboard";
+    setState("ha", s.homeassistant.running ? "ok" : "warn",
+             s.homeassistant.running ? "работает" : "запускается…");
+
+    const zb = s.zigbee;
+    if (zb.running) setState("zb", "ok", "работает");
+    else if (!zb.adapter) setState("zb", "warn", "адаптер не подключён");
+    else setState("zb", "warn", "запускается…");
+  }
+
+  refresh();
+  setInterval(() => { if (!document.hidden) refresh(); }, 5000);
+
+  // ---------- движение ----------
+  // Событие — ролики, записанные подряд: пока движение продолжается, каждый следующий
+  // ролик начинается сразу после предыдущего (через длину ролика).
+  const MONTHS = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+  const EVENTS_SHOWN = 5;
+  let events = [];
+
+  const fileUrl = (path) => "recordings/" + path.split("/").map(encodeURIComponent).join("/");
+
+  let piToday = null;  // «сегодня» по часам Pi: ролики названы по ним, а не по часам зрителя
+
+  function dayLabel(date) {
+    const today = piToday || new Date(); today.setHours(0, 0, 0, 0);
+    const day = new Date(date); day.setHours(0, 0, 0, 0);
+    const diff = Math.round((today - day) / 864e5);
+    if (diff === 0) return "Сегодня";
+    if (diff === 1) return "Вчера";
+    return `${date.getDate()} ${MONTHS[date.getMonth()]}`;
+  }
+
+  const hhmm = (d) => d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  const hhmmss = (d) => d.toLocaleTimeString("ru-RU");
+
+  function plural(n, one, few, many) {
+    const m10 = n % 10, m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return one;
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+    return many;
+  }
+
+  async function loadEvents() {
+    let data;
+    try {
+      data = await api("recordings.json");
+    } catch {
+      return;  // оставляем прошлый список, повторим позже
+    }
+    if (data.today) {
+      const [ty, tm, td] = data.today.split("-").map(Number);
+      piToday = new Date(ty, tm - 1, td);
+    }
+    const clips = data.days.flatMap((d) => d.clips.map((c) => {
+      const [y, m, dd] = d.day.split("-").map(Number);
+      const [hh, mm, ss] = c.time.split(":").map(Number);
+      return { ...c, start: new Date(y, m - 1, dd, hh, mm, ss) };
+    })).sort((a, b) => a.start - b.start);
+    // Ролики одного движения сервер помечает общим id события. У старых роликов его нет —
+    // для них склеиваем по времени: следующий ролик начинается не позже чем через длину ролика
+    // плюс запас (дописывание и наверстывание сдвигают имя на несколько секунд).
+    const joinGap = (data.clip + (data.preroll || 15)) * 1000;
+    events = [];
+    for (const c of clips) {
+      const last = events[events.length - 1];
+      const prev = last && last.clips[last.clips.length - 1];
+      const same = prev && (c.event || prev.event
+        ? c.event && c.event === prev.event
+        : c.start - prev.start <= joinGap);
+      if (same) last.clips.push(c);
+      else events.push({ clips: [c] });
+    }
+    for (const e of events) {
+      e.start = e.clips[0].start;
+      e.seconds = (e.clips[e.clips.length - 1].start - e.start) / 1000 + data.clip;
+    }
+    events.reverse();  // новые сверху
+    renderEvents();
+  }
+
+  let renderedKey = null;  // не "": пустой список тоже надо отрисовать с первого раза
+
+  function renderEvents() {
+    eventsChip();
+    const today = events.filter((e) => dayLabel(e.start) === "Сегодня").length;
+    // Ничего не поменялось — не трогаем карточки (иначе теряется фокус с клавиатуры).
+    // В ключе всё, что видно: счётчики, «Сегодня/Вчера» (меняются в полночь) и превью —
+    // сервер может отдать ролик раньше, чем допишет к нему превью.
+    const key = [today, events.length, ...events.slice(0, EVENTS_SHOWN).map((e) => dayLabel(e.start) + ":" +
+      e.clips.map((c) => `${c.path}>${c.thumb || ""}`).join(","))].join("|");
+    if (key === renderedKey) return;
+    renderedKey = key;
+    const focused = document.activeElement?.dataset?.event;
+    $("ev-meta").textContent = events.length
+      ? `сегодня ${today} ${plural(today, "событие", "события", "событий")} · всего ${events.length}`
+      : "";
+    const list = $("ev-list");
+    if (!events.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "Движения пока не было. Как только камера его заметит, здесь появится запись.";
+      list.replaceChildren(empty);
+      return;
+    }
+    list.replaceChildren(...events.slice(0, EVENTS_SHOWN).map((e, i) => {
+      const card = document.createElement("button");
+      card.className = "event";
+      const minutes = Math.max(1, Math.round(e.seconds / 60));
+      const parts = e.clips.length;
+      card.setAttribute("aria-label",
+        `${dayLabel(e.start)} в ${hhmm(e.start)}, около ${minutes} мин — открыть запись`);
+      card.innerHTML = '<div class="thumb"><span class="play">▶</span><span class="dur"></span></div>' +
+                       '<div class="info"><div class="time"></div><div class="date"></div></div>';
+      const thumb = e.clips[0].thumb;
+      if (thumb) card.querySelector(".thumb").style.backgroundImage = `url("${fileUrl(thumb)}")`;
+      card.querySelector(".dur").textContent = `~${minutes} мин`;
+      card.querySelector(".time").textContent = hhmm(e.start);
+      card.querySelector(".date").textContent = dayLabel(e.start) +
+        (parts > 1 ? ` · ${parts} ${plural(parts, "ролик", "ролика", "роликов")}` : "");
+      card.dataset.event = e.clips[0].path;
+      card.addEventListener("click", () => openEvent(e));
+      return card;
+    }));
+    if (focused) list.querySelector(`[data-event="${CSS.escape(focused)}"]`)?.focus();
+  }
+
+  // ---------- плеер ----------
+  let playing = null;  // { event, part }
+
+  function openEvent(e) {
+    playing = { event: e, part: 0 };
+    showPart();
+    $("player").showModal();
+  }
+
+  function showPart() {
+    const { event, part } = playing;
+    const clip = event.clips[part];
+    const total = event.clips.length;
+    $("pl-title").textContent = `${dayLabel(clip.start)}, ${hhmmss(clip.start)}`;
+    $("pl-part").textContent = total > 1 ? `часть ${part + 1} из ${total}` : "";
+    $("pl-prev").hidden = $("pl-next").hidden = total < 2;
+    $("pl-prev").disabled = part === 0;
+    $("pl-next").disabled = part === total - 1;
+    $("pl-open").href = "/camera#rec/" + clip.path;
+    $("pl-download").href = fileUrl(clip.path);
+    $("pl-download").download = clip.path.replace("/", "_");
+    const video = $("pl-video");
+    video.src = fileUrl(clip.path);
+    if (clip.thumb) video.poster = fileUrl(clip.thumb);
+    video.play().catch(() => {});
+  }
+
+  function step(dir) {
+    const next = playing.part + dir;
+    if (next < 0 || next >= playing.event.clips.length) return;
+    playing.part = next;
+    showPart();
+  }
+
+  $("pl-prev").addEventListener("click", () => step(-1));
+  $("pl-next").addEventListener("click", () => step(+1));
+  // Часть закончилась — сразу следующая, чтобы длинное движение смотрелось целиком.
+  $("pl-video").addEventListener("ended", () => step(+1));
+  $("pl-close").addEventListener("click", () => $("player").close());
+  $("player").addEventListener("close", () => {
+    const video = $("pl-video");
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
+    playing = null;
+  });
+  // Клик по затемнению вокруг окна закрывает плеер — но только если и нажали, и отпустили
+  // за его рамкой: клик, начатый на фоне и законченный над окном (или наоборот), тоже приходит
+  // самому <dialog>, поэтому смотрим на координаты.
+  function onBackdrop(e) {
+    const r = $("player").getBoundingClientRect();
+    return e.target === $("player") &&
+      (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom);
+  }
+  let downOnBackdrop = false;
+  $("player").addEventListener("pointerdown", (e) => { downOnBackdrop = onBackdrop(e); });
+  $("player").addEventListener("click", (e) => {
+    if (downOnBackdrop && onBackdrop(e)) $("player").close();
+  });
+
+  loadEvents();
+  setInterval(() => { if (!document.hidden && !playing) loadEvents(); }, 20000);
+
+  // ---------- мониторинг Pi ----------
+  const nf1 = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 });
+  const nf0 = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 });
+  const GB = 2 ** 30;
+
+  function bytesRate(b) {
+    if (b >= 2 ** 20) return nf1.format(b / 2 ** 20) + " МБ/с";
+    if (b >= 2 ** 10) return nf0.format(b / 2 ** 10) + " КБ/с";
+    return nf0.format(b) + " Б/с";
+  }
+
+  function duration(sec) {
+    const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
+    return d ? `${d} д ${h} ч` : h ? `${h} ч ${m} мин` : `${m} мин`;
+  }
+
+  // Статус всегда со значком и подписью: цвет — не единственный признак.
+  function setStatus(el, level, text) {
+    const icons = { good: "✓", warning: "▲", serious: "▲", critical: "⚠" };
+    el.replaceChildren();
+    const icon = document.createElement("span");
+    icon.className = "icon";
+    icon.textContent = icons[level];
+    icon.style.color = `var(--status-${level})`;
+    const label = document.createElement("span");
+    label.textContent = text;
+    el.append(icon, label);
+  }
+
+  // ---------- трей: разделы под плитками сворачиваются в значки ----------
+  // Какие раскрыты — помним в этом браузере; по умолчанию всё свёрнуто. #wifi и т.п. в адресе раскрывает раздел.
+  const TRAY_KEY = "home.tray.open";
+  const trayIds = [...document.querySelectorAll("#tray .chip")].map((b) => b.dataset.section);
+  const trayOpen = new Set();
+  try {
+    for (const id of JSON.parse(localStorage.getItem(TRAY_KEY) || "[]")) if (trayIds.includes(id)) trayOpen.add(id);
+  } catch { /* приватный режим или битые данные — начинаем со свёрнутых */ }
+  if (trayIds.includes(location.hash.slice(1))) trayOpen.add(location.hash.slice(1));
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+
+  const trayChip = (id) => document.querySelector(`#tray .chip[data-section="${id}"]`);
+  function applyTray() {
+    for (const id of trayIds) {
+      const open = trayOpen.has(id);
+      $(id).classList.toggle("folded", !open);
+      $(id).inert = !open;  // свёрнутое не попадает под Tab и экранный диктор
+      trayChip(id).setAttribute("aria-expanded", String(open));
+    }
+  }
+  function setSection(id, open) {
+    if (open) trayOpen.add(id); else trayOpen.delete(id);
+    applyTray();
+    try { localStorage.setItem(TRAY_KEY, JSON.stringify([...trayOpen])); } catch { /* не запомним — не страшно */ }
+    if (!open) return;
+    // Раскрылся ниже экрана — докручиваем, когда анимация закончится (без анимации — сразу).
+    const sec = $(id);
+    const reveal = () => { if (trayOpen.has(id)) sec.scrollIntoView({ behavior: "smooth", block: "nearest" }); };
+    if (reduceMotion.matches) return reveal();
+    sec.addEventListener("transitionend", function onEnd(e) {
+      if (e.target !== sec || e.propertyName !== "grid-template-rows") return;
+      sec.removeEventListener("transitionend", onEnd);
+      reveal();
+    });
+  }
+  for (const id of trayIds) trayChip(id).addEventListener("click", () => setSection(id, !trayOpen.has(id)));
+  document.querySelectorAll(".block-head .minimize").forEach((b) => b.addEventListener("click", () => {
+    setSection(b.dataset.section, false);
+    trayChip(b.dataset.section).focus();  // фокус не пропадает вместе со свёрнутым разделом
+  }));
+  // Открытие страницы — без анимации: сразу в запомненном виде.
+  document.documentElement.classList.add("tray-init");
+  applyTray();
+  requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.remove("tray-init")));
+
+  // Краткое состояние раздела на его значке. level null — просто текст.
+  function trayStatus(id, level, text) {
+    const el = $(`tray-${id}`);
+    el.classList.remove("rec");
+    if (level) setStatus(el, level, text);
+    else el.textContent = text;
+  }
+
+  function setMeter(el, fraction) {
+    el.style.width = Math.min(100, fraction * 100) + "%";
+    el.style.background = fraction >= 0.9 ? "var(--status-critical)"
+                        : fraction >= 0.8 ? "var(--status-warning)" : "var(--series)";
+  }
+
+  const THROTTLE_NAMES = {
+    undervoltage: "низкое напряжение",
+    freq_capped: "частота ограничена",
+    throttled: "троттлинг",
+    soft_temp_limit: "температурный лимит",
+  };
+
+  // ---- график: одна серия, линия 2px + заливка 10%, курсор с подсказкой ----
+  class LineChart {
+    constructor(el, { unit, fmt, domain }) {
+      this.el = el;
+      this.unit = unit;
+      this.fmt = fmt;
+      this.domain = domain;  // (min, max) → [ymin, ymax]
+      this.points = [];
+      this.span = 600;
+      this.hover = null;    // индекс выбранной точки в текущем массиве
+      this.hoverT = null;   // её время: массив каждые 3 с заменяется, индекс «уезжает»
+      this.follow = false;  // выбрана самая свежая точка — держимся за неё
+      this.pointerX = null; // курсор над графиком: после обновления берём точку под ним
+      const ns = "http://www.w3.org/2000/svg";
+      this.svg = document.createElementNS(ns, "svg");
+      this.svg.setAttribute("tabindex", "0");
+      this.svg.setAttribute("role", "img");
+      this.tip = document.createElement("div");
+      this.tip.className = "tooltip";
+      el.append(this.svg, this.tip);
+      this.svg.addEventListener("pointermove", (e) => { this.pointerX = e.offsetX; this.pointAt(e.offsetX); });
+      this.svg.addEventListener("pointerleave", () => { this.pointerX = null; this.setHover(null); });
+      this.svg.addEventListener("blur", () => this.setHover(null));
+      this.svg.addEventListener("focus", () => this.setHover(this.points.length - 1));
+      this.svg.addEventListener("keydown", (e) => {
+        if (!this.points.length) return;
+        this.pointerX = null;  // выбор с клавиатуры: курсор мыши больше не перебивает его
+        const i = this.hover ?? this.points.length - 1;
+        if (e.key === "ArrowLeft") this.setHover(Math.max(0, i - 1));
+        else if (e.key === "ArrowRight") this.setHover(Math.min(this.points.length - 1, i + 1));
+        else return;
+        e.preventDefault();
+      });
+      new ResizeObserver(() => this.draw()).observe(el);
+    }
+
+    update(points, span) {
+      this.span = span;
+      // В окно попадают только точки за последние span секунд.
+      const tEnd = points.length ? points[points.length - 1][0] : 0;
+      this.points = points.filter((p) => p[0] >= tEnd - span);
+      if (this.hoverT !== null) {
+        const i = this.follow ? this.points.length - 1
+                              : this.points.findIndex((p) => p[0] === this.hoverT);
+        this.hover = i >= 0 ? i : null;
+      }
+      this.draw();
+      if (this.pointerX !== null) this.pointAt(this.pointerX);
+    }
+
+    geometry() {
+      const w = this.el.clientWidth, h = this.el.clientHeight;
+      const m = { l: 30, r: 56, t: 10, b: 18 };
+      const vals = this.points.map((p) => p[1]).filter((v) => v !== null);
+      const [y0, y1] = this.domain(Math.min(...vals), Math.max(...vals));
+      const tEnd = this.points.length ? this.points[this.points.length - 1][0] : 0;
+      const t0 = tEnd - this.span;
+      return {
+        w, h, m, y0, y1, t0, tEnd,
+        x: (t) => m.l + (t - t0) / this.span * (w - m.l - m.r),
+        y: (v) => m.t + (1 - (v - y0) / (y1 - y0)) * (h - m.t - m.b),
+      };
+    }
+
+    draw() {
+      const svg = this.svg;
+      svg.replaceChildren();
+      const pts = this.points.filter((p) => p[1] !== null);
+      if (pts.length < 2) return;
+      const g = this.geometry();
+      this.g = g;
+      const ns = "http://www.w3.org/2000/svg";
+      const el = (tag, attrs, text) => {
+        const n = document.createElementNS(ns, tag);
+        for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+        if (text !== undefined) n.textContent = text;
+        svg.append(n);
+        return n;
+      };
+      // сетка и подписи оси Y: 3 чистых значения
+      const step = (g.y1 - g.y0) / 2;
+      for (let i = 0; i <= 2; i++) {
+        const v = g.y0 + step * i, y = g.y(v);
+        el("line", { class: "grid", x1: g.m.l, x2: g.w - g.m.r, y1: y, y2: y });
+        el("text", { class: "tick", x: g.m.l - 6, y: y + 3, "text-anchor": "end" }, nf0.format(v));
+      }
+      // подписи оси X
+      for (const [frac, label, anchor] of [[0, `−${Math.round(this.span / 60)} мин`, "start"],
+                                           [1, "сейчас", "end"]]) {
+        el("text", { class: "tick", x: g.m.l + frac * (g.w - g.m.l - g.m.r), y: g.h - 2,
+                     "text-anchor": anchor }, label);
+      }
+      const line = pts.map((p, i) => `${i ? "L" : "M"}${g.x(p[0]).toFixed(1)},${g.y(p[1]).toFixed(1)}`).join("");
+      const base = g.y(g.y0);
+      // Всё, что вне области графика, обрезается — линия не заходит на подписи осей.
+      this.clipId ??= "clip-" + Math.random().toString(36).slice(2);
+      const clip = el("clipPath", { id: this.clipId });
+      const rect = document.createElementNS(ns, "rect");
+      for (const [k, v] of Object.entries({ x: g.m.l, y: 0, width: g.w - g.m.l - g.m.r + 6, height: g.h - g.m.b }))
+        rect.setAttribute(k, v);
+      clip.append(rect);
+      const clipped = { "clip-path": `url(#${this.clipId})` };
+      el("path", { d: `${line}L${g.x(pts[pts.length - 1][0]).toFixed(1)},${base}L${g.x(pts[0][0]).toFixed(1)},${base}Z`,
+                   fill: "var(--series)", "fill-opacity": "0.1", stroke: "none", ...clipped });
+      el("path", { d: line, fill: "none", stroke: "var(--series)", "stroke-width": 2,
+                   "stroke-linejoin": "round", "stroke-linecap": "round", ...clipped });
+      // последняя точка: маркер с кольцом цвета фона и подпись значения
+      const last = pts[pts.length - 1];
+      el("circle", { cx: g.x(last[0]), cy: g.y(last[1]), r: 4, fill: "var(--series)",
+                     stroke: "var(--panel-2)", "stroke-width": 2 });
+      el("text", { class: "end-label", x: g.x(last[0]) + 8, y: g.y(last[1]) + 4 },
+         this.fmt(last[1]) + " " + this.unit);
+      // курсор
+      this.cross = el("line", { x1: 0, x2: 0, y1: g.m.t, y2: g.h - g.m.b, stroke: "var(--muted)",
+                                "stroke-width": 1, visibility: "hidden" });
+      this.dot = el("circle", { r: 4, fill: "var(--series)", stroke: "var(--panel-2)",
+                                "stroke-width": 2, visibility: "hidden" });
+      const vals = pts.map((p) => p[1]);
+      svg.setAttribute("aria-label",
+        `сейчас ${this.fmt(last[1])} ${this.unit}, минимум ${this.fmt(Math.min(...vals))}, ` +
+        `максимум ${this.fmt(Math.max(...vals))} за ${Math.round(this.span / 60)} минут. ` +
+        "Стрелки влево и вправо — значения по времени.");
+      this.setHover(this.hover);
+    }
+
+    pointAt(px) {
+      if (!this.g || !this.points.length) return;
+      let best = 0, dist = Infinity;
+      this.points.forEach((p, i) => {
+        const d = Math.abs(this.g.x(p[0]) - px);
+        if (p[1] !== null && d < dist) { dist = d; best = i; }
+      });
+      this.setHover(best);
+    }
+
+    setHover(i) {
+      this.hover = i;
+      this.hoverT = i === null ? null : this.points[i]?.[0] ?? null;
+      this.follow = i !== null && i === this.points.length - 1;
+      if (!this.cross) return;
+      const p = i === null ? null : this.points[i];
+      const show = p && p[1] !== null;
+      for (const n of [this.cross, this.dot]) n.setAttribute("visibility", show ? "visible" : "hidden");
+      this.tip.style.display = show ? "block" : "none";
+      if (!show) return;
+      const x = this.g.x(p[0]), y = this.g.y(p[1]);
+      this.cross.setAttribute("x1", x);
+      this.cross.setAttribute("x2", x);
+      this.dot.setAttribute("cx", x);
+      this.dot.setAttribute("cy", y);
+      this.tip.replaceChildren();
+      const strong = document.createElement("strong");
+      strong.textContent = `${this.fmt(p[1])} ${this.unit}`;
+      const time = document.createElement("span");
+      time.textContent = new Date(p[0] * 1000).toLocaleTimeString("ru-RU");
+      this.tip.append(strong, time);
+      const w = this.el.clientWidth;
+      this.tip.style.left = Math.max(40, Math.min(w - 40, x)) + "px";
+    }
+  }
+
+  const tempChart = new LineChart($("ch-temp"), {
+    unit: "°C",
+    fmt: (v) => nf1.format(v),
+    // от 30 до 90 °C по умолчанию, шире — если значения вышли за рамки; шаг 10
+    domain: (lo, hi) => [Math.min(30, Math.floor(lo / 10) * 10), Math.max(90, Math.ceil(hi / 10) * 10)],
+  });
+  const cpuChart = new LineChart($("ch-cpu"), {
+    unit: "%",
+    fmt: (v) => nf0.format(v),
+    domain: () => [0, 100],
+  });
+
+  function summary(points, idx, fmt, unit) {
+    const vals = points.map((p) => p[idx]).filter((v) => v !== null);
+    if (!vals.length) return "";
+    const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+    return `мин ${fmt(Math.min(...vals))} · сред ${fmt(avg)} · макс ${fmt(Math.max(...vals))} ${unit}`;
+  }
+
+  // Данные устарели или нет связи: показываем это и приглушаем цифры, а не делаем вид, что всё свежее.
+  function setStale(text) {
+    $("sysmon-box").classList.toggle("stale", Boolean(text));
+    if (text) {
+      $("sm-meta").textContent = text;
+      trayStatus("system", "warning", text);
+    }
+  }
+
+  let systemBusy = false;
+
+  async function refreshSystem() {
+    if (systemBusy) return;
+    systemBusy = true;
+    let s;
+    try {
+      s = await api("api/system");
+    } catch {
+      setStale("нет связи с Pi");
+      return;
+    } finally {
+      systemBusy = false;
+    }
+    const c = s.current;
+    if (!c) return;  // первый замер ещё не готов
+    if (s.age > s.interval * 3) {
+      setStale(`данные не обновляются ${Math.round(s.age)} с`);
+    } else {
+      setStale(null);
+      $("sm-meta").textContent = `работает ${duration(c.uptime)} · обновляется каждые ${s.interval} с`;
+    }
+
+    // температура: до 70 норма, 70–80 тепло, от 80 Pi сбрасывает частоту
+    $("sm-temp").textContent = c.temperature === null ? "—" : nf1.format(c.temperature) + " °C";
+    const t = c.temperature;
+    if (t === null) setStatus($("sm-temp-status"), "warning", "нет данных");
+    else if (t >= 80) setStatus($("sm-temp-status"), "critical", "перегрев");
+    else if (t >= 70) setStatus($("sm-temp-status"), "warning", "горячо");
+    else setStatus($("sm-temp-status"), "good", "норма");
+    const throttled = c.throttling?.now?.length;
+    trayStatus("system", (t !== null && t >= 80) || throttled ? "critical" : t !== null && t >= 70 ? "warning" : "good",
+      `${t === null ? "—" : nf0.format(t) + " °C"} · CPU ${nf0.format(c.cpu)} %`);
+
+    $("sm-cpu").textContent = nf0.format(c.cpu) + " %";
+    $("sm-cpu-sub").textContent =
+      `нагрузка ${c.load.map((v) => nf1.format(v)).join(" · ")}` +
+      (c.freq ? ` · ${nf0.format(c.freq)} МГц` : "");
+
+    const mem = c.memory;
+    $("sm-mem").textContent = `${nf1.format(mem.used / GB)} из ${nf1.format(mem.total / GB)} ГБ`;
+    setMeter($("sm-mem-bar"), mem.used / mem.total);
+    $("sm-disk").textContent = `${nf0.format(c.disk.used / GB)} из ${nf0.format(c.disk.total / GB)} ГБ`;
+    setMeter($("sm-disk-bar"), c.disk.used / c.disk.total);
+    $("sm-net-rx").textContent = "↓ " + bytesRate(c.net.rx);
+    $("sm-net-tx").textContent = "↑ " + bytesRate(c.net.tx);
+
+    const th = c.throttling;
+    if (!th) {
+      setStatus($("sm-throttle"), "warning", "нет данных");
+      $("sm-throttle-sub").textContent = "";
+    } else if (th.now.length) {
+      setStatus($("sm-throttle"), "critical", th.now.map((n) => THROTTLE_NAMES[n]).join(", "));
+      $("sm-throttle-sub").textContent = "прямо сейчас";
+    } else {
+      setStatus($("sm-throttle"), th.since_boot.length ? "warning" : "good",
+                th.since_boot.length ? "сейчас без ограничений" : "без ограничений");
+      $("sm-throttle-sub").textContent = th.since_boot.length
+        ? "с включения было: " + th.since_boot.map((n) => THROTTLE_NAMES[n]).join(", ")
+        : `${nf0.format(c.freq || 0)} из ${nf0.format(c.freq_max || 0)} МГц`;
+    }
+
+    const span = s.interval * 200;
+    tempChart.update(s.history.map((h) => [h[0], h[1]]), span);
+    cpuChart.update(s.history.map((h) => [h[0], h[2]]), span);
+    $("ch-temp-sub").textContent = summary(s.history, 1, (v) => nf1.format(v), "°C");
+    $("ch-cpu-sub").textContent = summary(s.history, 2, (v) => nf0.format(v), "%");
+
+    const cores = $("sm-cores");
+    if (cores.children.length !== c.cores.length) {
+      cores.replaceChildren(...c.cores.map((_, i) => {
+        const row = document.createElement("div");
+        row.className = "core";
+        row.innerHTML = '<span class="name"></span><div class="meter"><div></div></div><span class="pct"></span>';
+        row.children[0].textContent = `Ядро ${i + 1}`;
+        return row;
+      }));
+    }
+    c.cores.forEach((v, i) => {
+      const row = cores.children[i];
+      setMeter(row.querySelector(".meter div"), v / 100);
+      row.children[2].textContent = nf0.format(v) + " %";
+    });
+
+    $("sm-procs").replaceChildren(...c.processes.map((p) => {
+      const tr = document.createElement("tr");
+      for (const [cls, text] of [["name", p.name], ["num", nf1.format(p.cpu) + " %"],
+                                 ["num", nf0.format(p.rss / 2 ** 20) + " МБ"]]) {
+        const td = document.createElement("td");
+        td.className = cls;
+        td.textContent = text;
+        if (cls === "name") td.title = `${p.name} (PID ${p.pid})`;
+        tr.append(td);
+      }
+      return tr;
+    }));
+  }
+
+  refreshSystem();
+  setInterval(() => { if (!document.hidden) refreshSystem(); }, 3000);
+
+  // ---------- интернет и модем ----------
+  const GB2 = 2 ** 30, MB2 = 2 ** 20;
+  const volume = (b) => b >= GB2 ? nf1.format(b / GB2) + " ГБ" : nf0.format(b / MB2) + " МБ";
+  let netBusy = false;
+  let netAction = false;  // пока выполняется команда, не перетираем переключатели опросом
+  let netHotspot = false;  // Wi-Fi раздаёт точку доступа — тогда модем единственный канал
+
+  // Качество LTE по RSRP (дБм): ориентиры операторов.
+  function rsrpQuality(rsrp) {
+    if (rsrp >= -90) return ["good", "отличный"];
+    if (rsrp >= -105) return ["good", "хороший"];
+    if (rsrp >= -115) return ["warning", "слабый"];
+    return ["critical", "очень слабый"];
+  }
+
+  function since(ts) {
+    return new Date(ts * 1000).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  async function refreshInternet() {
+    if (netBusy) return;
+    netBusy = true;
+    let s;
+    try {
+      s = await api("api/internet");
+    } catch {
+      $("net-meta").textContent = "нет связи с Pi";
+      trayStatus("internet", "warning", "нет связи с Pi");
+      return;
+    } finally {
+      netBusy = false;
+    }
+    renderZeroTier(s.zerotier, s.ports);
+    const fo = s.failover, m = s.modem;
+    // Модем узнаём по интерфейсу, на котором поднят его профиль (сообщает сторож резерва):
+    // «не Wi-Fi» может быть и кабелем в eth0. Без сторожа интерфейс неизвестен — считаем по-старому.
+    const viaModem = Boolean(s.primary) && (fo ? s.primary === fo.modem_device : s.primary !== "wlan0");
+
+    $("net-active").textContent = !s.primary ? "нет интернета" : viaModem ? "LTE-модем"
+      : s.primary === "wlan0" ? "Wi-Fi" : /^(eth|en)/.test(s.primary) ? "Ethernet" : s.primary;
+    // Время переключения — только если модем включил сторож. Если сторож ещё на Wi-Fi, а трафик
+    // уже в модеме, значит у Wi-Fi пропал сам маршрут и NetworkManager перешёл на модем без сторожа.
+    const wifi = s.local?.wifi, cable = s.local?.cable;
+    netHotspot = wifi?.mode === "hotspot";
+    $("net-active-sub").textContent = !fo ? "сторож резерва не запущен"
+      : fo.age > fo.check_every * 4 ? `сторож резерва молчит ${Math.round(fo.age)} с`
+      : netHotspot ? "единственный канал"
+      : !viaModem ? "модем в резерве"
+      : fo.active === "modem" ? `резерв включён в ${since(fo.since)}` : "Wi-Fi не подключён";
+    $("net-meta").textContent = netHotspot
+      ? `интернет — от LTE-модема, Pi раздаёт его по Wi-Fi «${wifi.ssid}»`
+      : viaModem ? "Wi-Fi без интернета — работаем через LTE-модем, вернёмся сами"
+      : "основной канал — Wi-Fi, при его пропаже Pi сам перейдёт на LTE-модем";
+    const online = fo ? (fo.active === "modem" ? fo.modem_ok : fo.wifi_ok) : Boolean(s.primary);
+    trayStatus("internet", online ? "good" : "critical", online ? `через ${$("net-active").textContent}`
+      : m?.sim === "absent" ? "нет интернета · нет SIM" : "нет интернета");
+
+    // Wi-Fi либо подключён к роутеру (тогда это канал в интернет), либо сам раздаёт точку доступа.
+    if (netHotspot) {
+      setStatus($("net-wifi"), "good", `раздаёт «${wifi.ssid}»`);
+      const n = wifi.clients || 0;
+      $("net-wifi-sub").textContent = (n ? `${n} ${plural(n, "устройство", "устройства", "устройств")}` : "никого нет")
+        + ` · Pi: ${wifi.address}`;
+    } else {
+      if (fo) setStatus($("net-wifi"), fo.wifi_ok ? "good" : "critical", fo.wifi_ok ? "интернет есть" : "нет интернета");
+      else $("net-wifi").replaceChildren();
+      $("net-wifi-sub").textContent = "основной канал";
+    }
+    // Кабель — прямой доступ к Pi и панели, без интернета.
+    $("net-cable").textContent = cable?.carrier ? "подключён" : "не подключён";
+    $("net-cable-sub").textContent = cable?.address ? `Pi: ${cable.address}` : "";
+
+    const controls = ["net-data", "net-mode", "net-reconnect", "net-reboot"];
+    if (!m?.present) {
+      $("net-operator").textContent = "не найден";
+      setStatus($("net-modem"), "warning", "модем не отвечает");
+      $("net-signal").textContent = "";
+      [...$("net-bars").children].forEach((b) => b.className = "");
+      for (const id of controls) $(id).disabled = true;
+      return;
+    }
+    if (!netAction) for (const id of controls) $(id).disabled = false;
+
+    $("net-operator").textContent = m.operator || "нет сети";
+    const gen = m.generation ? `${m.generation} · ${m.network}` : m.network;
+    if (m.sim === "absent") setStatus($("net-modem"), "critical", "нет SIM-карты");
+    else if (m.sim === "pin" || m.sim === "puk") setStatus($("net-modem"), "critical", `SIM просит ${m.sim.toUpperCase()}`);
+    else if (m.connection === "connected") {
+      const online = fo ? fo.modem_ok : true;
+      setStatus($("net-modem"), online ? "good" : "warning", `${gen} · ${online ? "на связи" : "без интернета"}`);
+    } else if (!m.data) setStatus($("net-modem"), "warning", "мобильные данные выключены");
+    else setStatus($("net-modem"), "warning", m.connection === "connecting" ? "подключается…" : "не подключён");
+
+    // Сигнал: деления + RSRP/SINR и словами
+    const bars = $("net-bars");
+    [...bars.children].forEach((b, i) => {
+      b.className = i < m.bars ? "on" : "";
+      b.style.height = `${6 + i * 4}px`;
+    });
+    bars.setAttribute("aria-label", `сигнал ${m.bars} из ${m.max_bars}`);
+    const rsrp = parseFloat(m.signal.rsrp), sinr = m.signal.sinr;
+    if (!Number.isNaN(rsrp)) {
+      const [, word] = rsrpQuality(rsrp);
+      $("net-signal").textContent = `${word} · RSRP ${m.signal.rsrp}` + (sinr ? ` · SINR ${sinr}` : "");
+    } else {
+      $("net-signal").textContent = m.signal.rssi ? `RSSI ${m.signal.rssi}` : `${m.bars} из ${m.max_bars}`;
+    }
+
+    $("net-rx").textContent = "↓ " + bytesRate(m.rate.rx);
+    $("net-tx").textContent = "↑ " + bytesRate(m.rate.tx);
+    $("net-month").textContent = m.month ? `${volume(m.month.rx + m.month.tx)}` : "—";
+    $("net-session").textContent = m.month
+      ? `↓ ${volume(m.month.rx)} ↑ ${volume(m.month.tx)} · сеанс ${duration(m.session.seconds)}`
+      : `сеанс ${duration(m.session.seconds)}`;
+
+    if (!netAction) {
+      $("net-data").checked = m.data;
+      $("net-mode").value = m.mode;
+    }
+  }
+
+  // ZeroTier — главный путь к панели извне, поэтому рисуем его всегда, даже без модема.
+  function renderZeroTier(z, ports) {
+    for (const id of ["zt-panel", "zt-ha"]) $(id).hidden = true;
+    if (!z?.present) {
+      setStatus($("zt-state"), "critical", "служба ZeroTier не отвечает");
+      for (const id of ["zt-state-sub", "zt-net", "zt-devices", "zt-total", "zt-meta"]) $(id).textContent = "";
+      $("zt-ip").textContent = $("zt-count").textContent = $("zt-rx").textContent = $("zt-tx").textContent = "—";
+      return;
+    }
+    const net = z.networks[0];
+    const ip = net?.ips?.[0];
+    if (!z.online) setStatus($("zt-state"), "critical", "нет связи с ZeroTier");
+    else if (!net) setStatus($("zt-state"), "warning", "Pi не подключён к сети");
+    else if (net.status !== "OK") setStatus($("zt-state"), "warning",
+      net.status === "ACCESS_DENIED" ? "ждёт подтверждения в my.zerotier.com" : `сеть: ${net.status}`);
+    else setStatus($("zt-state"), "good", "на связи");
+    $("zt-state-sub").textContent = !z.online ? ""
+      : z.tcp_fallback ? "через TCP-ретранслятор — медленнее обычного"
+      : `напрямую по UDP · корневых серверов: ${z.roots}`;
+    $("zt-meta").textContent = `узел ${z.address} · ZeroTier ${z.version}`;
+
+    $("zt-ip").textContent = ip || "—";
+    $("zt-net").textContent = net ? `сеть ${net.name} · ${net.id}` : "";
+    if (ip) {
+      for (const [id, port, name] of [["zt-panel", ports.panel, "панель"], ["zt-ha", ports.ha, "Home Assistant"]]) {
+        $(id).href = `http://${ip}:${port}/`;
+        $(id).textContent = `${name}: ${ip}:${port}`;
+        $(id).hidden = false;
+      }
+    }
+
+    const devices = z.devices || [];
+    $("zt-count").textContent = devices.length ? String(devices.length) : "нет";
+    $("zt-devices").textContent = devices.length
+      ? devices.map((d) => `${d.address} · ${d.latency ?? "?"} мс · ${d.direct ? "напрямую" : "через ретранслятор"}`).join("\n")
+      : "подключи телефон или ПК к этой сети";
+
+    $("zt-rx").textContent = "↓ " + bytesRate(z.traffic.rate.rx);
+    $("zt-tx").textContent = "↑ " + bytesRate(z.traffic.rate.tx);
+    $("zt-total").textContent = `всего ↓ ${volume(z.traffic.rx)} ↑ ${volume(z.traffic.tx)}`;
+  }
+
+  async function modemCommand(action, body, doneText) {
+    const msg = $("net-msg");
+    netAction = true;
+    for (const id of ["net-data", "net-mode", "net-reconnect", "net-reboot"]) $(id).disabled = true;
+    msg.className = "msg";
+    msg.textContent = "выполняю…";
+    try {
+      await api(`api/modem/${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body || {}),
+        signal: timeout(20000),
+      });
+      msg.textContent = doneText;
+    } catch (e) {
+      msg.className = "msg error";
+      // Не дождались ответа — это ещё не отказ: сервер мог довести команду до конца.
+      // AbortError — от запасного таймера там, где нет AbortSignal.timeout.
+      msg.textContent = e.name === "TimeoutError" || e.name === "AbortError"
+        ? "нет ответа за 20 с — команда могла выполниться, проверьте состояние модема"
+        : e.name === "TypeError" ? "не получилось: нет связи с Pi"
+        : `не получилось: ${e.message}`;
+    } finally {
+      netAction = false;
+      setTimeout(refreshInternet, 1500);
+    }
+  }
+
+  $("net-data").addEventListener("change", (e) => {
+    const on = e.target.checked;
+    if (!on && !confirm(netHotspot
+        ? "Выключить мобильные данные? Pi и устройства в её Wi-Fi останутся без интернета."
+        : "Выключить мобильные данные? Тогда при пропаже Wi-Fi у Pi не будет интернета.")) {
+      e.target.checked = true;
+      return;
+    }
+    modemCommand("data", { on }, on ? "мобильные данные включены" : "мобильные данные выключены");
+  });
+  $("net-mode").addEventListener("change", (e) =>
+    modemCommand("mode", { mode: e.target.value }, "режим сети изменён, модем ищет сеть"));
+  $("net-reconnect").addEventListener("click", () =>
+    modemCommand("reconnect", {}, "переподключено"));
+  $("net-reboot").addEventListener("click", () => {
+    if (confirm(netHotspot ? "Перезагрузить модем? Около минуты интернета не будет."
+                           : "Перезагрузить модем? Около минуты резервного интернета не будет."))
+      modemCommand("reboot", {}, "модем перезагружается, это около минуты");
+  });
+
+  refreshInternet();
+  setInterval(() => { if (!document.hidden) refreshInternet(); }, 5000);
+
+  // ---------- Wi-Fi Pi: точка доступа, устройства, настройки ----------
+  const WIFI_CHANNELS = { bg: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13], a: [36, 40, 44, 48] };
+  let wifiBusy = false;
+  let wifiDirty = false;  // пользователь правит форму — опрос её не перетирает
+  let wifiPrev = null;  // прошлый опрос, для скорости: { t, down, up, clients: { mac: { down, up } } }
+  let wifiSettings = null;  // настройки с Pi, как их видел последний опрос
+  let wifiJobSeen = undefined;  // время применения, о котором уже сказали (undefined — ещё не опрашивали)
+  let wifiPending = null;  // { ssid, newPassword } — отправили настройки, ждём, пока применятся
+
+  function signalWord(dbm) {
+    return dbm >= -55 ? ["good", "отличный"] : dbm >= -67 ? ["good", "хороший"]
+      : dbm >= -75 ? ["warning", "слабый"] : ["critical", "плохой"];
+  }
+  function fillChannels(band, current) {
+    const list = WIFI_CHANNELS[band] || WIFI_CHANNELS.bg;
+    $("wf-in-channel").replaceChildren(...list.map((c) => new Option(String(c), String(c))));
+    $("wf-in-channel").value = String(list.includes(current) ? current : list[0]);
+  }
+  function fillWifiForm(st) {
+    $("wf-in-ssid").value = st.ssid || "";
+    $("wf-in-pass").value = st.password || "";
+    $("wf-in-band").value = st.band in WIFI_CHANNELS ? st.band : "bg";
+    fillChannels($("wf-in-band").value, st.channel);
+  }
+  let wifiQrKey = null;  // какую версию QR-кода показываем (меняется с именем сети и паролем)
+  function renderWifiQr(w) {
+    const img = $("wf-qr"), note = $("wf-qr-note");
+    if (!w.active || !w.qr) {
+      img.hidden = true;
+      wifiQrKey = null;
+      note.textContent = !w.active ? "точка доступа выключена" : "пароль Wi-Fi недоступен (нужен sudo без пароля)";
+      return;
+    }
+    if (w.qr !== wifiQrKey) {
+      wifiQrKey = w.qr;
+      img.src = `wifi-qr.svg?v=${w.qr}`;
+    }
+    img.hidden = false;
+    note.textContent = `Наведите камеру телефона — он подключится к «${w.settings.ssid}» сам`;
+  }
+  $("wf-qr").addEventListener("error", () => {
+    $("wf-qr").hidden = true;
+    $("wf-qr-note").textContent = "не получилось построить QR-код";
+    wifiQrKey = null;  // при следующем опросе попробуем ещё раз
+  });
+
+  function cell(text, cls) {
+    const td = document.createElement("td");
+    if (cls) td.className = cls;
+    td.textContent = text;
+    return td;
+  }
+
+  function renderWifiJob(job) {
+    const msg = $("wf-msg");
+    $("wf-save").disabled = job?.state === "applying";
+    if (wifiJobSeen === undefined) {  // при открытии страницы старые итоги не показываем
+      wifiJobSeen = job && job.state !== "applying" ? job.time : null;
+      if (job?.state !== "applying") return;
+    }
+    if (!job || job.time === wifiJobSeen) return;
+    if (job.state === "applying") {
+      msg.className = "msg";
+      msg.textContent = "применяю… Wi-Fi пропадёт на несколько секунд";
+      return;
+    }
+    wifiJobSeen = job.time;
+    wifiPending = null;
+    wifiDirty = false;  // форму заново заполнит опрос — уже с тем, что реально стоит на Pi
+    msg.className = job.state === "failed" ? "msg error" : "msg";
+    msg.textContent = job.state === "failed"
+      ? `не получилось: ${job.error}. Вернул прежние настройки`
+      : `готово: сеть «${job.ssid}» работает`;
+  }
+
+  async function refreshWifi() {
+    if (wifiBusy) return;
+    wifiBusy = true;
+    let w;
+    try {
+      w = await api("api/wifi");
+    } catch {
+      $("wifi-box").classList.add("stale");
+      trayStatus("wifi", "warning", wifiPending ? "перезапускается" : "нет связи с Pi");
+      // Во время применения связь пропадает, если страница открыта через этот же Wi-Fi.
+      $("wf-meta").textContent = wifiPending
+        ? `Wi-Fi перезапускается. Если вы в этой сети — подключитесь к «${wifiPending.ssid}»`
+          + (wifiPending.newPassword ? " с новым паролем" : "")
+        : "нет связи с Pi";
+      return;
+    } finally {
+      wifiBusy = false;
+    }
+    $("wifi-box").classList.remove("stale");
+    renderWifiJob(w.job);
+    wifiSettings = w.settings;
+    if (w.settings && !wifiDirty) fillWifiForm(w.settings);
+    renderWifiQr(w);
+
+    const empty = (text) => {
+      const tr = document.createElement("tr");
+      const td = cell(text, "empty");
+      td.colSpan = 6;
+      tr.append(td);
+      return tr;
+    };
+    if (!w.active) {
+      $("wf-ssid").textContent = w.settings?.ssid || "—";
+      setStatus($("wf-state"), "warning",
+        w.connection ? `Wi-Fi Pi подключён к сети «${w.connection}»` : "точка доступа выключена");
+      $("wf-meta").textContent = "Pi сейчас не раздаёт Wi-Fi — см. ~/project/network/README.md";
+      trayStatus("wifi", "warning", "не раздаёт");
+      for (const id of ["wf-channel", "wf-count", "wf-down", "wf-up", "wf-total"]) $(id).textContent = "—";
+      for (const id of ["wf-channel-sub", "wf-count-sub", "wf-total-sub"]) $(id).textContent = "";
+      $("wf-clients").replaceChildren(empty("точка доступа выключена"));
+      wifiPrev = null;
+      return;
+    }
+
+    $("wf-ssid").textContent = w.settings?.ssid ?? "—";
+    setStatus($("wf-state"), "good", "раздаёт · WPA2");
+    $("wf-meta").textContent = w.address ? `Pi в этой сети: ${w.address} и pi.lan` : "";
+    $("wf-channel").textContent = String(w.channel ?? "—");
+    $("wf-channel-sub").textContent = `${w.freq >= 5000 ? "5" : "2,4"} ГГц · ширина ${w.width} МГц`;
+
+    const clients = w.clients;
+    $("wf-count").textContent = String(clients.length);
+    $("wf-count-sub").textContent = clients.length
+      ? plural(clients.length, "устройство", "устройства", "устройств")
+      : "никого нет";
+    trayStatus("wifi", "good", `${w.settings?.ssid ?? "раздаёт"} · `
+      + (clients.length ? `${clients.length} ${plural(clients.length, "устройство", "устройства", "устройств")}` : "никого"));
+
+    // Скорость — по разнице счётчиков с прошлым опросом.
+    const now = performance.now() / 1000;
+    const dt = wifiPrev ? now - wifiPrev.t : 0;
+    const rate = (cur, prev) => dt > 0 && cur != null && prev != null && cur >= prev ? (cur - prev) / dt : null;
+    const t = w.traffic;
+    const down = rate(t?.down, wifiPrev?.down), up = rate(t?.up, wifiPrev?.up);
+    $("wf-down").textContent = "↓ " + (down == null ? "—" : bytesRate(down));
+    $("wf-up").textContent = "↑ " + (up == null ? "—" : bytesRate(up));
+    $("wf-total").textContent = t ? volume(t.down + t.up) : "—";
+    $("wf-total-sub").textContent = t ? `устройствам ↓ ${volume(t.down)} · от них ↑ ${volume(t.up)}` : "";
+
+    const prevClients = wifiPrev?.clients || {};
+    $("wf-clients").replaceChildren(...(clients.length ? clients.map((c) => {
+      const tr = document.createElement("tr");
+      const who = document.createElement("td");
+      who.className = "who";
+      const dev = document.createElement("span");
+      dev.className = "dev";
+      dev.textContent = c.name || "без имени";
+      const addr = document.createElement("span");
+      addr.className = "addr";
+      addr.textContent = [c.ip, c.mac].filter(Boolean).join(" · ");
+      who.append(dev, addr);
+
+      const sig = cell("—", "num");
+      if (c.signal != null) {
+        const [level, word] = signalWord(c.signal);
+        setStatus(sig, level, `${c.signal} dBm · ${word}`);
+      }
+      const p = prevClients[c.mac];
+      const cd = rate(c.down, p?.down), cu = rate(c.up, p?.up);
+      tr.append(
+        who,
+        sig,
+        cell(c.rate ? `${nf0.format(c.rate)} Мбит/с` : "—", "num"),
+        cell(cd == null ? "—" : `${bytesRate(cd)} / ${bytesRate(cu ?? 0)}`, "num"),
+        cell(c.down != null ? `${volume(c.down)} / ${volume(c.up ?? 0)}` : "—", "num"),
+        cell(c.connected != null ? (c.connected < 60 ? "< 1 мин" : duration(c.connected)) : "—", "num"),
+      );
+      return tr;
+    }) : [empty("никто не подключён к Wi-Fi Pi")]));
+
+    wifiPrev = {
+      t: now, down: t?.down, up: t?.up,
+      clients: Object.fromEntries(clients.map((c) => [c.mac, { down: c.down, up: c.up }])),
+    };
+  }
+
+  $("wf-form").addEventListener("input", () => { wifiDirty = true; });
+  $("wf-in-band").addEventListener("change", (e) =>
+    fillChannels(e.target.value, Number($("wf-in-channel").value)));
+  $("wf-show").addEventListener("click", (e) => {
+    const input = $("wf-in-pass"), show = input.type === "password";
+    input.type = show ? "text" : "password";
+    e.target.textContent = show ? "Скрыть" : "Показать";
+    e.target.setAttribute("aria-pressed", String(show));
+  });
+  $("wf-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const body = {
+      ssid: $("wf-in-ssid").value.trim(),
+      password: $("wf-in-pass").value || null,  // пусто — пароль не меняем
+      band: $("wf-in-band").value,
+      channel: Number($("wf-in-channel").value),
+    };
+    const newPassword = Boolean(body.password) && body.password !== wifiSettings?.password;
+    if (!confirm("Применить? Wi-Fi Pi перезапустится, все устройства отключатся на несколько секунд. "
+        + `Если вы сейчас в этом Wi-Fi — потом подключитесь к сети «${body.ssid}»`
+        + (newPassword ? " с новым паролем." : "."))) return;
+    const msg = $("wf-msg");
+    msg.className = "msg";
+    msg.textContent = "отправляю…";
+    $("wf-save").disabled = true;
+    try {
+      await api("api/wifi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      wifiPending = { ssid: body.ssid, newPassword };
+      msg.textContent = "применяю… Wi-Fi пропадёт на несколько секунд";
+    } catch (err) {
+      msg.className = "msg error";
+      msg.textContent = err.name === "TypeError" ? "не получилось: нет связи с Pi" : `не получилось: ${err.message}`;
+      $("wf-save").disabled = false;
+    }
+    setTimeout(refreshWifi, 1500);
+  });
+
+  refreshWifi();
+  setInterval(() => { if (!document.hidden) refreshWifi(); }, 3000);
+
+  // ---------- Bluetooth: мои устройства, датчики, всё, что рядом ----------
+  const BT_ICONS = {  // Icon из BlueZ → значок и название типа
+    "audio-card": ["🔊", "колонка"], "audio-headset": ["🎧", "гарнитура"], "audio-headphones": ["🎧", "наушники"],
+    "input-keyboard": ["⌨️", "клавиатура"], "input-mouse": ["🖱️", "мышь"], "input-gaming": ["🎮", "геймпад"],
+    "input-tablet": ["✏️", "планшет"], "phone": ["📱", "телефон"], "computer": ["💻", "компьютер"],
+    "camera-photo": ["📷", "камера"], "camera-video": ["📷", "камера"], "printer": ["🖨️", "принтер"],
+    "multimedia-player": ["🎵", "плеер"], "video-display": ["📺", "экран"],
+  };
+  const SENSOR_FIELDS = [  // что показывать крупно: [ключ, подпись, формат]
+    ["temperature", "температура", (v) => `${nf1.format(v)} °C`],
+    ["humidity", "влажность", (v) => `${nf0.format(v)} %`],
+    ["pressure", "давление", (v) => `${nf0.format(v)} гПа`],
+    ["co2", "CO₂", (v) => `${nf0.format(v)} ppm`],
+    ["pm25", "PM2.5", (v) => `${nf0.format(v)} мкг/м³`],
+    ["pm10", "PM10", (v) => `${nf0.format(v)} мкг/м³`],
+    ["illuminance", "освещённость", (v) => `${nf0.format(v)} лк`],
+    ["moisture", "влажность почвы", (v) => `${nf0.format(v)} %`],
+    ["conductivity", "удобрения", (v) => `${nf0.format(v)} мкСм/см`],
+    ["dew_point", "точка росы", (v) => `${nf1.format(v)} °C`],
+    ["motion", "движение", (v) => v ? "есть" : "нет"],
+    ["opening", "дверь/окно", (v) => v ? "открыто" : "закрыто"],
+    ["button", "кнопка", (v) => String(v)],
+  ];
+  let btBusy = false;
+  let btState = null;
+  let btShowAll = false;  // показывать ли безымянные устройства рядом (телефоны, маячки)
+  let btJobSeen = undefined;
+
+  // Значок датчика — по тому, что он измеряет.
+  const sensorIcon = (v) => v.motion != null ? "🏃" : v.opening != null ? "🚪" : v.button != null ? "🔘"
+    : v.moisture != null || v.conductivity != null ? "🪴" : "🌡️";
+  const btName = (d) => d.name || (d.vendor ? `устройство ${d.vendor}` : "без имени");
+  const btType = (d) => BT_ICONS[d.icon] || (d.sensor ? ["🌡️", "датчик"] : ["ᛒ", d.le ? "BLE" : "Bluetooth"]);
+  function btSignal(rssi) {
+    if (rssi == null) return "";
+    const word = rssi >= -60 ? "рядом" : rssi >= -75 ? "недалеко" : rssi >= -85 ? "далеко" : "на пределе";
+    return `${rssi} dBm · ${word}`;
+  }
+
+  // Строки переиспользуем по адресу: опрос раз в 3 с не должен сбивать фокус и нажатия.
+  function syncRows(box, items, make, update, emptyText) {
+    if (!items.length) {
+      if (box.firstElementChild?.className !== "empty") {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        box.replaceChildren(empty);
+      }
+      box.firstElementChild.textContent = emptyText;
+      return;
+    }
+    const old = new Map([...box.children].map((el) => [el.dataset.key, el]));
+    const rows = items.map((it) => {
+      let row = old.get(it.address);
+      if (!row) {
+        row = make();
+        row.dataset.key = it.address;
+      }
+      update(row, it);
+      return row;
+    });
+    const same = rows.length === box.children.length && rows.every((r, i) => box.children[i] === r);
+    if (!same) box.replaceChildren(...rows);
+  }
+
+  function makeDevRow() {
+    const row = document.createElement("div");
+    row.className = "bt-row";
+    row.innerHTML = '<span class="ico" aria-hidden="true"></span><span class="nm"><b></b><span></span></span>'
+      + '<span class="sig"></span><span class="acts"></span>';
+    return row;
+  }
+  function updateDevRow(row, d, actions, sub) {
+    const [icon, type] = btType(d);
+    row.querySelector(".ico").textContent = icon;
+    row.querySelector(".nm b").textContent = btName(d);
+    row.querySelector(".nm span").textContent = [sub ?? type, d.address].filter(Boolean).join(" · ");
+    row.querySelector(".sig").textContent = btSignal(d.rssi);
+    const acts = row.querySelector(".acts");
+    const key = actions.map((a) => a[0]).join(",");
+    if (acts.dataset.key !== key) {  // кнопки пересоздаём, только если поменялся их набор
+      acts.dataset.key = key;
+      acts.replaceChildren(...actions.map(([act, label]) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.dataset.act = act;
+        b.textContent = label;
+        return b;
+      }));
+    }
+    const running = btState?.job?.state === "running";
+    for (const b of acts.children) b.disabled = running;
+  }
+
+  function makeSensorCard() {
+    const card = document.createElement("div");
+    card.className = "sensor";
+    card.innerHTML = '<div class="head"></div><div class="vals"></div><div class="sub"></div>';
+    return card;
+  }
+  function updateSensorCard(card, d) {
+    const s = d.sensor;
+    card.querySelector(".head").textContent = `${sensorIcon(s.values)} ${d.name || s.model}`;
+    const vals = card.querySelector(".vals");
+    if (s.encrypted) {
+      vals.replaceChildren();
+      card.querySelector(".sub").textContent = `${s.brand} ${s.model} · данные зашифрованы — добавьте датчик `
+        + "в Home Assistant, он спросит ключ (bindkey)";
+      return;
+    }
+    vals.replaceChildren(...SENSOR_FIELDS.filter(([k]) => s.values[k] != null).map(([k, label, fmt]) => {
+      const span = document.createElement("span");
+      const small = document.createElement("small");
+      small.textContent = label;
+      span.append(fmt(s.values[k]), small);
+      return span;
+    }));
+    const power = [s.values.battery != null && `батарея ${s.values.battery} %`,
+                   s.values.voltage != null && `${s.values.voltage.toLocaleString("ru-RU", { maximumFractionDigits: 2 })} В`].filter(Boolean).join(", ");
+    card.querySelector(".sub").textContent = [`${s.brand} ${s.model}`, power, btSignal(d.rssi)].filter(Boolean).join(" · ");
+  }
+
+  function renderBtJob(job) {
+    const msg = $("bt-msg");
+    if (btJobSeen === undefined) {  // при открытии страницы старые итоги не показываем
+      btJobSeen = job && job.state !== "running" ? job.time : null;
+    }
+    if (!job || (job.state !== "running" && job.time === btJobSeen)) return;
+    msg.className = "bt-msg" + (job.state === "failed" ? " error" : "");
+    const verb = job.action === "disconnect" ? "Отключаю" : "Подключаю";
+    if (job.state === "running") {
+      const p = job.prompt;
+      msg.replaceChildren(`${verb} «${job.name}»… `);
+      if (p) {  // код — текстом, не разметкой: его присылает устройство через BlueZ
+        const code = document.createElement("span");
+        code.className = "code";
+        code.textContent = p.code;
+        const [before, after] = p.type === "type" ? ["Наберите на устройстве ", " и нажмите Enter"]
+          : p.type === "confirm" ? ["Проверьте, что на устройстве код ", ", и подтвердите"]
+          : ["Если устройство спросит PIN-код — ", ""];
+        msg.append(before, code, after);
+      } else if (job.action === "connect") {
+        msg.append("Если это наушники или колонка — включите на них режим сопряжения.");
+      }
+      return;
+    }
+    btJobSeen = job.time;
+    msg.textContent = job.state === "failed" ? `«${job.name}»: не получилось — ${job.error}`
+      : job.action === "disconnect" ? `«${job.name}» отключено` : `«${job.name}» подключено`;
+  }
+
+  async function refreshBluetooth() {
+    if (btBusy) return;
+    btBusy = true;
+    let s;
+    try {
+      s = await api("api/bluetooth");
+    } catch {
+      $("bt-box").classList.add("stale");
+      $("bt-meta").textContent = "нет связи с Pi";
+      trayStatus("bluetooth", "warning", "нет связи с Pi");
+      return;
+    } finally {
+      btBusy = false;
+    }
+    btState = s;
+    $("bt-box").classList.remove("stale");
+    renderBtJob(s.job);
+    if (!s.adapter) {
+      $("bt-meta").textContent = s.error || "адаптер не найден";
+      trayStatus("bluetooth", "critical", "нет адаптера");
+      $("bt-scan").disabled = true;
+      return;
+    }
+    const scanning = s.scan_left > 0;
+    $("bt-scan").disabled = scanning || !s.adapter.powered;
+    $("bt-scan").textContent = scanning ? `Ищу… ${s.scan_left} с` : "Искать устройства";
+    $("bt-meta").textContent = !s.adapter.powered ? "Bluetooth выключен"
+      : `${s.adapter.name} · ${s.adapter.address}` + (s.agent ? "" : " · агент сопряжения не запущен");
+
+    const byName = (a, b) => btName(a).localeCompare(btName(b), "ru") || a.address.localeCompare(b.address);
+    const mine = s.devices.filter((d) => d.paired || d.trusted || d.connected)
+      .sort((a, b) => (b.connected - a.connected) || byName(a, b));
+    const sensors = s.devices.filter((d) => d.sensor && !mine.includes(d)).sort(byName);
+    const rest = s.devices.filter((d) => !mine.includes(d) && !d.sensor);
+    // Безымянные BLE-маячки (телефоны, часы, наушники соседей) подключать незачем — прячем под кнопку.
+    const useful = (d) => d.name || d.icon || !d.le;
+    const near = rest.filter((d) => btShowAll || useful(d)).sort(byName);
+    const hidden = rest.length - rest.filter(useful).length;
+
+    syncRows($("bt-mine"), mine, makeDevRow, (row, d) => updateDevRow(row, d,
+      [d.connected ? ["disconnect", "Отключить"] : ["connect", "Подключить"], ["forget", "Забыть"]],
+      [d.connected ? "подключено" : "не подключено", d.battery != null && `батарея ${d.battery} %`]
+        .filter(Boolean).join(" · ")),
+      "Пока ничего — найдите устройство поиском и нажмите «Подключить»");
+    syncRows($("bt-sensors"), sensors, makeSensorCard, updateSensorCard,
+      "Датчиков рядом не слышно. Поддерживаются BTHome, Xiaomi (в том числе с прошивкой pvvx/ATC), Govee, SwitchBot");
+    syncRows($("bt-near"), near, makeDevRow,
+      (row, d) => updateDevRow(row, d, useful(d) ? [["connect", "Подключить"]] : []),
+      scanning ? "ищу…" : "Нажмите «Искать устройства» и переведите устройство в режим сопряжения");
+    $("bt-more").hidden = !hidden;
+    $("bt-more").textContent = btShowAll ? "Скрыть безымянные" : `Ещё ${hidden} безымянных рядом (телефоны, часы, маячки)`;
+
+    const connected = s.devices.filter((d) => d.connected).length;
+    trayStatus("bluetooth", s.adapter.powered ? "good" : "warning",
+      s.job?.state === "running" ? (s.job.action === "disconnect" ? "отключаю…" : "подключаю…")
+      : !s.adapter.powered ? "выключен"
+      : [connected ? `${connected} подключено` : "ничего не подключено",
+         sensors.length && `${sensors.length} ${plural(sensors.length, "датчик", "датчика", "датчиков")}`]
+        .filter(Boolean).join(" · "));
+  }
+
+  async function btCommand(body) {
+    const msg = $("bt-msg");
+    try {
+      await api("api/bluetooth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch (err) {
+      msg.className = "bt-msg error";
+      msg.textContent = err.name === "TypeError" ? "не получилось: нет связи с Pi" : `не получилось: ${err.message}`;
+    }
+    setTimeout(refreshBluetooth, 300);
+  }
+  $("bt-scan").addEventListener("click", () => btCommand({ action: "scan" }));
+  $("bt-more").addEventListener("click", () => { btShowAll = !btShowAll; refreshBluetooth(); });
+  for (const id of ["bt-mine", "bt-near"]) {
+    $(id).addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-act]");
+      if (!b) return;
+      const address = b.closest(".bt-row").dataset.key;
+      const d = btState?.devices.find((x) => x.address === address);
+      if (b.dataset.act === "forget"
+          && !confirm(`Забыть «${d ? btName(d) : address}»? Чтобы подключить снова, придётся заново сопрягать.`)) return;
+      btCommand({ action: b.dataset.act, address });
+    });
+  }
+
+  refreshBluetooth();
+  setInterval(() => { if (!document.hidden) refreshBluetooth(); }, 3000);
+
+  // ---------- AdGuard Home: реклама и трекеры для устройств в Wi-Fi Pi ----------
+  let agBusy = false;
+  const AG_BUTTONS = ["ag-pause10", "ag-pause60", "ag-resume"];
+
+  function renderAgBars(total, blocked) {
+    const svg = $("ag-bars"), ns = "http://www.w3.org/2000/svg";
+    const n = total.length || 24, w = 240 / n, max = Math.max(1, ...total), now = Date.now();
+    const rect = (cls, x, value) => {
+      const r = document.createElementNS(ns, "rect"), h = value / max * 60;
+      r.setAttribute("class", cls);
+      r.setAttribute("x", x);
+      r.setAttribute("width", Math.max(w - 2, 1));
+      r.setAttribute("y", 60 - h);
+      r.setAttribute("height", value ? Math.max(h, 1) : 0);
+      return r;
+    };
+    svg.replaceChildren(...total.map((q, i) => {
+      const b = blocked[i] || 0, x = i * w + 1;
+      const g = document.createElementNS(ns, "g");
+      const title = document.createElementNS(ns, "title");  // подсказка при наведении
+      const hour = new Date(now - (n - 1 - i) * 3600e3).getHours();
+      title.textContent = `${hour}:00 — запросов ${nf0.format(q)}, заблокировано ${nf0.format(b)}`;
+      g.append(title, rect("total", x, q), rect("blocked", x, b));
+      return g;
+    }));
+    svg.setAttribute("aria-label", `запросы по часам за сутки, больше всего за час — ${nf0.format(max)}`);
+  }
+
+  function renderAgTable(tbody, rows, emptyText) {
+    if (!rows.length) {
+      const tr = document.createElement("tr");
+      tr.append(cell(emptyText, "empty"));
+      tbody.replaceChildren(tr);
+      return;
+    }
+    tbody.replaceChildren(...rows.map(([main, sub, count]) => {
+      const tr = document.createElement("tr");
+      const name = cell(main, "name");
+      if (sub) {
+        const span = document.createElement("span");
+        span.className = "ag-sub";
+        span.textContent = ` · ${sub}`;
+        name.append(span);
+      }
+      tr.append(name, cell(nf0.format(count), "num"));
+      return tr;
+    }));
+  }
+
+  async function refreshAdGuard() {
+    if (agBusy) return;
+    agBusy = true;
+    let a;
+    try {
+      a = await api("api/adguard");
+    } catch {
+      $("ag-box").classList.add("stale");
+      $("ag-meta").textContent = "нет связи с Pi";
+      trayStatus("adguard", "warning", "нет связи с Pi");
+      return;
+    } finally {
+      agBusy = false;
+    }
+    $("ag-box").classList.remove("stale");
+    $("ag-open").href = a.url;
+    if (!a.available) {
+      $("ag-meta").textContent = a.error;
+      setStatus($("ag-state"), "critical", "не отвечает");
+      $("ag-state-sub").textContent = "на Pi: sudo systemctl status AdGuardHome";
+      trayStatus("adguard", "critical", "не отвечает");
+      for (const id of AG_BUTTONS) $(id).disabled = true;
+      return;
+    }
+    $("ag-meta").textContent = `${a.version} · DNS для устройств в Wi-Fi Pi, наружу — по шифрованному DoH`;
+    const paused = !a.protection;
+    const until = paused && a.paused_ms ? new Date(Date.now() + a.paused_ms) : null;
+    setStatus($("ag-state"), paused ? "warning" : "good", paused ? "на паузе" : "включена");
+    $("ag-state-sub").textContent = !paused ? "реклама, трекеры, вредоносные сайты"
+      : until ? `включится сама в ${hhmm(until)}` : "выключена — включите кнопкой ниже";
+    const pct = a.queries ? a.blocked / a.queries * 100 : 0;
+    $("ag-queries").textContent = nf0.format(a.queries);
+    $("ag-blocked").textContent = nf0.format(a.blocked);
+    $("ag-blocked-sub").textContent = `${nf1.format(pct)} % запросов`;
+    $("ag-avg").textContent = `${nf0.format(a.avg_ms)} мс`;
+    renderAgBars(a.hours, a.hours_blocked);
+    renderAgTable($("ag-top-blocked"), a.top_blocked.map((t) => [t.domain, null, t.count]), "пока ничего");
+    renderAgTable($("ag-top-clients"), a.top_clients.map((c) => [c.name || c.ip, c.name ? c.ip : null, c.count]),
+      "пока никого");
+    for (const id of ["ag-pause10", "ag-pause60"]) $(id).hidden = paused;
+    $("ag-resume").hidden = !paused;
+    for (const id of AG_BUTTONS) $(id).disabled = false;
+    trayStatus("adguard", paused ? "warning" : "good",
+      paused ? (until ? `пауза до ${hhmm(until)}` : "на паузе")
+      : a.queries ? `отсечено ${nf1.format(pct)} %` : "включён");
+  }
+
+  async function agCommand(body, doneText) {
+    const msg = $("ag-msg");
+    msg.className = "msg";
+    msg.textContent = "выполняю…";
+    for (const id of AG_BUTTONS) $(id).disabled = true;
+    try {
+      await api("api/adguard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      msg.textContent = doneText;
+    } catch (err) {
+      msg.className = "msg error";
+      msg.textContent = err.name === "TypeError" ? "не получилось: нет связи с Pi" : `не получилось: ${err.message}`;
+    }
+    setTimeout(refreshAdGuard, 300);
+  }
+  $("ag-pause10").addEventListener("click", () =>
+    agCommand({ action: "pause", minutes: 10 }, "защита на паузе 10 минут — потом включится сама"));
+  $("ag-pause60").addEventListener("click", () =>
+    agCommand({ action: "pause", minutes: 60 }, "защита на паузе час — потом включится сама"));
+  $("ag-resume").addEventListener("click", () => agCommand({ action: "resume" }, "защита включена"));
+
+  refreshAdGuard();
+  setInterval(() => { if (!document.hidden) refreshAdGuard(); }, 10000);
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+# Home Assistant. Почти всё настраивается в интерфейсе, здесь только то, что нужно панели.
+default_config:
+
+homeassistant:
+  auth_providers:
+    # Панель на порту 45462 сама проверяет логин и проксирует запросы с 127.0.0.1,
+    # поэтому оттуда HA открывается без второго входа.
+    - type: trusted_networks
+      trusted_networks:
+        - 127.0.0.1/32
+        - ::1/128
+      allow_bypass_login: true
+    - type: homeassistant
+
+# HA слушает только 127.0.0.1 — наружу он доступен лишь через панель (порт 45462).
+# С HA 2026.x это хранится не здесь, а в .storage/http (задано через websocket
+# http/config/configure + http/config/promote); блок http: в YAML он игнорирует.
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml

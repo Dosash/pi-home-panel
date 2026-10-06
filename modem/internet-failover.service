@@ -1,0 +1,12 @@
+[Unit]
+Description=Internet failover: Wi-Fi primary, LTE modem backup
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+ExecStart=/usr/bin/python3 /home/dosash/project/modem/failover.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

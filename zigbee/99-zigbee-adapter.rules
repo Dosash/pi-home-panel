@@ -1,0 +1,13 @@
+# Создано adapters.py --rules: вставили известный Zigbee-адаптер — запускаем Zigbee2MQTT.
+ACTION=="add", SUBSYSTEM=="tty", ENV{ID_VENDOR_ID}=="0403", ENV{ID_MODEL_ID}=="6015", TAG+="systemd", ENV{SYSTEMD_WANTS}+="zigbee2mqtt.service"
+ACTION=="add", SUBSYSTEM=="tty", ENV{ID_VENDOR_ID}=="0451", ENV{ID_MODEL_ID}=="16a8", TAG+="systemd", ENV{SYSTEMD_WANTS}+="zigbee2mqtt.service"
+ACTION=="add", SUBSYSTEM=="tty", ENV{ID_VENDOR_ID}=="0451", ENV{ID_MODEL_ID}=="16c8", TAG+="systemd", ENV{SYSTEMD_WANTS}+="zigbee2mqtt.service"
+ACTION=="add", SUBSYSTEM=="tty", ENV{ID_VENDOR_ID}=="0451", ENV{ID_MODEL_ID}=="bef3", TAG+="systemd", ENV{SYSTEMD_WANTS}+="zigbee2mqtt.service"
+ACTION=="add", SUBSYSTEM=="tty", ENV{ID_VENDOR_ID}=="067b", ENV{ID_MODEL_ID}=="2303", TAG+="systemd", ENV{SYSTEMD_WANTS}+="zigbee2mqtt.service"
+ACTION=="add", SUBSYSTEM=="tty", ENV{ID_VENDOR_ID}=="10c4", ENV{ID_MODEL_ID}=="ea60", TAG+="systemd", ENV{SYSTEMD_WANTS}+="zigbee2mqtt.service"
+ACTION=="add", SUBSYSTEM=="tty", ENV{ID_VENDOR_ID}=="1a86", ENV{ID_MODEL_ID}=="55d4", TAG+="systemd", ENV{SYSTEMD_WANTS}+="zigbee2mqtt.service"
+ACTION=="add", SUBSYSTEM=="tty", ENV{ID_VENDOR_ID}=="1a86", ENV{ID_MODEL_ID}=="7523", TAG+="systemd", ENV{SYSTEMD_WANTS}+="zigbee2mqtt.service"
+ACTION=="add", SUBSYSTEM=="tty", ENV{ID_VENDOR_ID}=="1cf1", ENV{ID_MODEL_ID}=="0030", TAG+="systemd", ENV{SYSTEMD_WANTS}+="zigbee2mqtt.service"
+ACTION=="add", SUBSYSTEM=="tty", ENV{ID_VENDOR_ID}=="2fe3", ENV{ID_MODEL_ID}=="0100", TAG+="systemd", ENV{SYSTEMD_WANTS}+="zigbee2mqtt.service"
+ACTION=="add", SUBSYSTEM=="tty", ENV{ID_VENDOR_ID}=="303a", ENV{ID_MODEL_ID}=="4001", TAG+="systemd", ENV{SYSTEMD_WANTS}+="zigbee2mqtt.service"
+ACTION=="add", SUBSYSTEM=="tty", ENV{ID_VENDOR_ID}=="303a", ENV{ID_MODEL_ID}=="831a", TAG+="systemd", ENV{SYSTEMD_WANTS}+="zigbee2mqtt.service"

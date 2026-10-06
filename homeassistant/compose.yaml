@@ -1,0 +1,16 @@
+# Home Assistant в контейнере. Запуск: sudo docker compose up -d (из этой папки).
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: ghcr.io/home-assistant/home-assistant:stable
+    network_mode: host # поиск Wi-Fi-устройств в локальной сети (mDNS, SSDP)
+    privileged: true
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-UTC} # свой часовой пояс — в .env рядом (TZ=Европа/…), он не в репозитории
+    volumes:
+      - ./config:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro # Bluetooth через BlueZ на Pi
+      # Записи камеры в «Мультимедиа → My media» (только чтение)
+      - /home/dosash/project/webcam/recordings:/media/Камера:ro

@@ -1,0 +1,20 @@
+# Образец data/configuration.yaml для Zigbee2MQTT. Настоящий файл лежит в data/ и в репозиторий
+# не попадает: в нём ключ Zigbee-сети. При первом запуске GENERATE заменится случайными значениями.
+version: 5
+homeassistant:
+  enabled: true
+mqtt:
+  base_topic: zigbee2mqtt
+  server: mqtt://localhost:1883
+frontend:
+  enabled: true
+  host: 127.0.0.1
+  port: 8099
+  base_url: /z2m
+advanced:
+  network_key: GENERATE
+  pan_id: GENERATE
+  ext_pan_id: GENERATE
+  last_seen: ISO_8601
+availability:
+  enabled: true

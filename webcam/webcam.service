@@ -1,0 +1,17 @@
+[Unit]
+Description=Home panel: camera, Home Assistant and Zigbee2MQTT behind one login
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=dosash
+Group=dosash
+SupplementaryGroups=video
+WorkingDirectory=/home/dosash/project/webcam
+EnvironmentFile=/home/dosash/project/webcam/webcam.env
+ExecStart=/usr/bin/python3 /home/dosash/project/webcam/webcam.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

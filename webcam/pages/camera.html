@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Вебкамера</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #181b21;
+    --panel-2: #1f232a;
+    --line: #2a2f37;
+    --text: #e6e8eb;
+    --muted: #8b929c;
+    --accent: #58a6ff;
+    --ok: #3fb950;
+    --warn: #d29922;
+    --bad: #f85149;
+    --btn: #262a31;
+    --btn-hover: #30353d;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 10px 12px;
+    padding: 10px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--muted); flex: none;
+  }
+  .dot.ok { background: var(--ok); }
+  .dot.warn { background: var(--warn); }
+  .dot.bad { background: var(--bad); }
+  #title { font-weight: 600; }
+  #info { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .badge {
+    display: none;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .02em;
+  }
+  .badge.show { display: inline-block; }
+  #rec-badge { background: color-mix(in srgb, var(--bad) 20%, transparent); color: var(--bad); }
+  #rec-badge::before { content: "● "; animation: blink 1s steps(2) infinite; }
+  #motion-badge { background: color-mix(in srgb, var(--warn) 20%, transparent); color: var(--warn); }
+  @keyframes blink { 50% { opacity: 0; } }
+  .spacer { flex: 1; }
+  .tabs { display: flex; background: var(--btn); border-radius: 8px; padding: 3px; }
+  .tabs button { background: transparent; padding: 5px 12px; }
+  .tabs button[aria-selected="true"] { background: var(--btn-hover); }
+  select {
+    background: var(--btn);
+    color: var(--text);
+    border: 0;
+    border-radius: 6px;
+    padding: 7px 8px;
+    font: inherit;
+    cursor: pointer;
+  }
+  #sound[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 25%, var(--btn)); }
+  button, .button {
+    background: var(--btn);
+    color: var(--text);
+    border: 0;
+    border-radius: 6px;
+    padding: 7px 12px;
+    font: inherit;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  button:hover, .button:hover { background: var(--btn-hover); }
+  .count { color: var(--muted); margin-left: 4px; font-variant-numeric: tabular-nums; }
+
+  main { flex: 1; min-height: 0; display: flex; }
+  .view { flex: 1; min-width: 0; min-height: 0; display: none; }
+  .view.active { display: flex; }
+
+  /* эфир */
+  #live { position: relative; background: #000; align-items: center; justify-content: center; }
+  #video { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: none;
+    place-items: center;
+    text-align: center;
+    padding: 16px;
+    color: var(--muted);
+    font-size: 16px;
+  }
+  .overlay.show { display: grid; }
+
+  /* записи */
+  #records { flex-direction: row; }
+  #list {
+    width: 340px;
+    flex: none;
+    overflow-y: auto;
+    background: var(--panel);
+    border-right: 1px solid var(--line);
+  }
+  #usage {
+    padding: 12px 16px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    background: var(--panel);
+    z-index: 1;
+  }
+  .meter { height: 4px; background: var(--btn); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .meter div { height: 100%; background: var(--accent); width: 0; }
+  details { border-bottom: 1px solid var(--line); }
+  summary {
+    padding: 10px 16px;
+    cursor: pointer;
+    font-weight: 600;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸"; color: var(--muted); margin-right: 8px; }
+  details[open] summary::before { content: "▾"; }
+  summary span:first-child { flex: 1; }
+  .clip {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 6px 16px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+  }
+  .clip:hover { background: var(--panel-2); }
+  .clip.active { background: var(--panel-2); border-left-color: var(--accent); }
+  .thumb {
+    width: 96px;
+    aspect-ratio: 16 / 9;
+    flex: none;
+    border-radius: 4px;
+    background: #000 center / cover no-repeat;
+  }
+  .clip .time { font-size: 15px; font-variant-numeric: tabular-nums; }
+  .clip .meta { color: var(--muted); font-size: 12px; }
+  .empty { padding: 24px 16px; color: var(--muted); }
+
+  #player {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    background: #000;
+  }
+  #player video { flex: 1; min-height: 0; width: 100%; background: #000; }
+  #player .bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+  }
+  #player .bar .name { flex: 1; font-variant-numeric: tabular-nums; }
+  #player-empty { flex: 1; display: grid; place-items: center; color: var(--muted); padding: 16px; text-align: center; }
+
+  @media (max-width: 760px) {
+    #records { flex-direction: column-reverse; overflow-y: auto; }
+    #list { width: auto; border-right: 0; overflow: visible; }
+    #player { flex: none; }
+    #player video { aspect-ratio: 16 / 9; flex: none; }
+    #player-empty { flex: none; aspect-ratio: 16 / 9; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <a href="/" class="button" id="back" title="На главную">←</a>
+  <span id="dot" class="dot"></span>
+  <span id="title">Вебкамера</span>
+  <span id="info">подключение…</span>
+  <span id="motion-badge" class="badge">движение</span>
+  <span id="rec-badge" class="badge">ЗАПИСЬ</span>
+  <span class="spacer"></span>
+  <div class="tabs" role="tablist">
+    <button role="tab" data-view="live" aria-selected="true">Эфир</button>
+    <button role="tab" data-view="records" aria-selected="false">Записи<span id="rec-count" class="count"></span></button>
+  </div>
+  <span id="live-controls">
+    <select id="quality" title="Качество эфира. Трафик: 1080p ~7 МБ/с, 540p ~1 МБ/с, 360p ~0,3 МБ/с">
+      <option value="1080p">1080p</option>
+      <option value="540p">540p</option>
+      <option value="360p">360p</option>
+    </select>
+    <button id="sound" aria-pressed="false" title="Слушать микрофон камеры">🔇 Звук</button>
+    <button id="snap" title="Открыть кадр в новой вкладке">Снимок</button>
+  </span>
+  <button id="full" title="Во весь экран">⛶</button>
+</header>
+<main>
+  <section id="live" class="view active">
+    <img id="video" alt="">
+    <div id="overlay" class="overlay"></div>
+  </section>
+  <section id="records" class="view">
+    <aside id="list">
+      <div id="usage">Загрузка…<div class="meter"><div id="meter"></div></div></div>
+      <div id="days"></div>
+    </aside>
+    <div id="player">
+      <div id="player-empty">Выберите запись слева</div>
+      <video id="clip" controls playsinline preload="metadata" hidden></video>
+      <div class="bar" id="player-bar" hidden>
+        <span class="name" id="clip-name"></span>
+        <button id="prev" title="Предыдущая запись">◀</button>
+        <button id="next" title="Следующая запись">▶</button>
+        <a class="button" id="download" download>Скачать</a>
+      </div>
+    </div>
+  </section>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  // Истёк вход — на страницу входа и обратно сюда же.
+  function checkLogin(r) {
+    if (r.status === 401) {
+      location.href = "/login?next=" + encodeURIComponent(location.pathname + location.hash);
+      throw new Error("login required");
+    }
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r;
+  }
+  const video = $("video");
+  const clipVideo = $("clip");
+
+  // ---------- вкладки ----------
+  let view = "live";
+
+  function setView(name, clipPath) {
+    view = name;
+    document.querySelectorAll(".view").forEach((el) => el.classList.toggle("active", el.id === name));
+    document.querySelectorAll("[role=tab]").forEach((b) =>
+      b.setAttribute("aria-selected", String(b.dataset.view === name)));
+    $("live-controls").hidden = name !== "live";
+    if (name === "live") {
+      clipVideo.pause();
+      if (wantSound) startSound();
+      connect();
+      history.replaceState(null, "", "#live");
+    } else {
+      // Пока смотрим записи, живой поток не тянем: экономим трафик.
+      disconnect();
+      stopSound();
+      loadRecordings(clipPath);
+      if (!clipPath) history.replaceState(null, "", current ? "#rec/" + current : "#rec");
+    }
+  }
+
+  document.querySelectorAll("[role=tab]").forEach((b) =>
+    b.addEventListener("click", () => setView(b.dataset.view)));
+
+  // ---------- эфир ----------
+  let retry = null;
+
+  function connect() {
+    clearTimeout(retry);
+    if (view === "live" && !document.hidden) {
+      video.src = `stream.mjpg?q=${$("quality").value}&t=${Date.now()}`;
+    }
+  }
+
+  function disconnect() {
+    clearTimeout(retry);
+    video.removeAttribute("src");
+  }
+
+  video.addEventListener("error", () => {
+    if (view !== "live" || document.hidden) return;
+    retry = setTimeout(connect, 2000);
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    document.hidden ? disconnect() : connect();
+  });
+
+  function showOverlay(text) {
+    $("overlay").textContent = text || "";
+    $("overlay").classList.toggle("show", Boolean(text));
+  }
+
+  const STATES = {
+    streaming: ["ok", null],
+    starting: ["warn", "Включаю камеру…"],
+    no_camera: ["bad", "USB-камера не найдена. Подключите её, поток появится сам."],
+    error: ["bad", "Камера не отвечает, пробую снова…"],
+  };
+
+  let wasRecording = null;
+
+  async function poll() {
+    try {
+      const r = checkLogin(await fetch("status", { cache: "no-store" }));
+      const s = await r.json();
+      const [cls, text] = STATES[s.state] || ["warn", s.state];
+      $("dot").className = "dot " + cls;
+      showOverlay(text);
+      const cam = s.camera;
+      $("title").textContent = cam ? cam.name : "Вебкамера";
+      $("info").textContent = cam && s.state === "streaming"
+        ? `${cam.size || ""} · ${s.fps} к/с`
+        : "";
+      $("sound").disabled = !s.audio && !sound;
+      $("sound").title = s.audio ? "Слушать микрофон камеры" : "У камеры нет микрофона";
+      $("motion-badge").classList.toggle("show", s.motion);
+      $("rec-badge").classList.toggle("show", Boolean(s.recording));
+      // Ролик дописан — обновим список.
+      if (wasRecording && wasRecording !== s.recording) loadRecordings();
+      wasRecording = s.recording;
+    } catch {
+      $("dot").className = "dot bad";
+      $("info").textContent = "нет связи с сервером";
+    }
+  }
+
+  // Качество запоминается в браузере.
+  try { $("quality").value = localStorage.getItem("quality") || "1080p"; } catch {}
+  if (!$("quality").value) $("quality").value = "1080p";
+  $("quality").addEventListener("change", () => {
+    try { localStorage.setItem("quality", $("quality").value); } catch {}
+    connect();
+  });
+
+  // ---------- звук ----------
+  // Сервер отдаёт сырой PCM (16 бит, моно); играем его через Web Audio небольшими кусками.
+  let sound = null;
+  let wantSound = false;
+
+  $("sound").addEventListener("click", () => {
+    wantSound = !sound;
+    wantSound ? startSound() : stopSound();
+  });
+
+  function setSoundButton(on, text) {
+    $("sound").setAttribute("aria-pressed", String(on));
+    $("sound").textContent = text || (on ? "🔊 Звук" : "🔇 Звук");
+  }
+
+  async function startSound() {
+    if (sound) return;
+    // AudioContext создаём сразу, пока идёт клик, иначе браузер может не дать играть.
+    const ctx = new AudioContext({ sampleRate: 24000 });
+    const abort = new AbortController();
+    sound = { abort, ctx };
+    setSoundButton(true);
+    let res;
+    try {
+      res = await fetch("audio.pcm", { signal: abort.signal, cache: "no-store" });
+    } catch {
+      if (sound && sound.abort === abort) {
+        stopSound();
+        setSoundButton(false, "🔇 Нет звука");
+      }
+      return;
+    }
+    const rate = Number(res.headers.get("X-Sample-Rate")) || 24000;
+    const reader = res.body.getReader();
+    let next = 0;
+    let carry = null;  // нечётный байт с конца прошлого куска
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        let bytes = value;
+        if (carry) {
+          bytes = new Uint8Array(value.length + 1);
+          bytes[0] = carry;
+          bytes.set(value, 1);
+          carry = null;
+        }
+        if (bytes.length % 2) {
+          carry = bytes[bytes.length - 1];
+          bytes = bytes.subarray(0, bytes.length - 1);
+        }
+        if (!bytes.length) continue;
+        const samples = new Int16Array(bytes.slice().buffer);
+        const buf = ctx.createBuffer(1, samples.length, rate);
+        const ch = buf.getChannelData(0);
+        for (let i = 0; i < samples.length; i++) ch[i] = samples[i] / 32768;
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.connect(ctx.destination);
+        const now = ctx.currentTime;
+        // Небольшой запас от рывков сети; если отстали больше чем на секунду — догоняем.
+        if (next < now + 0.05 || next > now + 1) next = now + 0.2;
+        src.start(next);
+        next += buf.duration;
+      }
+    } catch {
+      // оборвали сами или пропала сеть
+    }
+    const wasCurrent = sound && sound.abort === abort;
+    if (wasCurrent) {
+      stopSound();
+      // Соединение оборвалось само — переподключимся, если звук всё ещё нужен.
+      if (wantSound && view === "live") setTimeout(startSound, 2000);
+    }
+  }
+
+  function stopSound() {
+    if (!sound) return;
+    sound.abort.abort();
+    sound.ctx.close();
+    sound = null;
+    setSoundButton(false);
+  }
+
+  $("snap").addEventListener("click", () => window.open("snapshot.jpg?t=" + Date.now(), "_blank"));
+
+  $("full").addEventListener("click", () => {
+    const el = view === "live" ? $("live") : clipVideo;
+    document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen();
+  });
+
+  // ---------- записи ----------
+  let clips = [];   // плоский список, новые сверху
+  let serverToday = null;  // «сегодня» по часам Pi: ролики названы по ним, а не по часам зрителя
+  let current = null;
+
+  const MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля",
+                  "августа", "сентября", "октября", "ноября", "декабря"];
+
+  function dayTitle(day) {
+    const [y, m, d] = day.split("-").map(Number);
+    const date = new Date(y, m - 1, d);
+    const today = serverToday ? new Date(serverToday) : new Date();
+    today.setHours(0, 0, 0, 0);
+    const diff = Math.round((today - date) / 864e5);
+    const label = `${d} ${MONTHS[m - 1]}` + (y !== today.getFullYear() ? ` ${y}` : "");
+    return diff === 0 ? `Сегодня, ${label}` : diff === 1 ? `Вчера, ${label}` : label;
+  }
+
+  const mb = (bytes) => (bytes / 2 ** 20).toFixed(1) + " МБ";
+  const gb = (bytes) => (bytes / 2 ** 30).toFixed(1);
+  const fileUrl = (path) => "recordings/" + path.split("/").map(encodeURIComponent).join("/");
+
+  async function loadRecordings(open) {
+    let data;
+    try {
+      const r = checkLogin(await fetch("recordings.json", { cache: "no-store" }));
+      data = await r.json();
+    } catch {
+      $("usage").firstChild.textContent = "Не удалось загрузить список";
+      return;
+    }
+    if (data.today) {
+      const [ty, tm, td] = data.today.split("-").map(Number);
+      serverToday = new Date(ty, tm - 1, td);
+    }
+    clips = data.days.flatMap((d) => d.clips.map((c) => ({ ...c, day: d.day })));
+    $("rec-count").textContent = clips.length ? clips.length : "";
+    $("usage").firstChild.textContent =
+      `${clips.length} ${plural(clips.length, "запись", "записи", "записей")} · ` +
+      `${gb(data.total)} из ${gb(data.limit)} ГБ`;
+    $("meter").style.width = Math.min(100, (data.total / data.limit) * 100) + "%";
+
+    const openDays = new Set([...document.querySelectorAll("#days details[open]")].map((d) => d.dataset.day));
+    const box = $("days");
+    box.replaceChildren();
+    if (!clips.length) {
+      box.innerHTML = '<div class="empty">Записей пока нет. Ролик появится, как только камера заметит движение.</div>';
+    }
+    data.days.forEach((d, i) => {
+      const det = document.createElement("details");
+      det.dataset.day = d.day;
+      det.open = openDays.size ? openDays.has(d.day) || i === 0 : i === 0;
+      const sum = document.createElement("summary");
+      sum.innerHTML = `<span></span><span class="count">${d.clips.length}</span>`;
+      sum.firstChild.textContent = dayTitle(d.day);
+      det.append(sum);
+      for (const c of d.clips) {
+        const row = document.createElement("div");
+        row.className = "clip";
+        row.dataset.path = c.path;
+        const th = document.createElement("div");
+        th.className = "thumb";
+        if (c.thumb) th.style.backgroundImage = `url("${fileUrl(c.thumb)}")`;
+        const text = document.createElement("div");
+        text.innerHTML = '<div class="time"></div><div class="meta"></div>';
+        text.children[0].textContent = c.time;
+        text.children[1].textContent = mb(c.size);
+        row.append(th, text);
+        row.addEventListener("click", () => play(c.path));
+        det.append(row);
+      }
+      box.append(det);
+    });
+
+    const target = open || current;
+    if (target && clips.some((c) => c.path === target)) play(target, Boolean(open));
+    else markActive();
+  }
+
+  function plural(n, one, few, many) {
+    const m10 = n % 10, m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return one;
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+    return many;
+  }
+
+  function markActive() {
+    document.querySelectorAll(".clip").forEach((el) =>
+      el.classList.toggle("active", el.dataset.path === current));
+  }
+
+  function play(path, autoplay = true) {
+    const c = clips.find((x) => x.path === path);
+    if (!c) return;
+    const changed = current !== path;
+    current = path;
+    markActive();
+    history.replaceState(null, "", "#rec/" + path);
+    $("player-empty").hidden = true;
+    clipVideo.hidden = false;
+    $("player-bar").hidden = false;
+    $("clip-name").textContent = `${dayTitle(c.day)}, ${c.time}`;
+    $("download").href = fileUrl(c.path);
+    $("download").download = c.path.replace("/", "_");
+    const i = clips.indexOf(c);
+    $("prev").disabled = i >= clips.length - 1;
+    $("next").disabled = i <= 0;
+    if (changed) {
+      clipVideo.src = fileUrl(c.path);
+      if (c.thumb) clipVideo.poster = fileUrl(c.thumb);
+      if (autoplay) clipVideo.play().catch(() => {});
+      const row = document.querySelector(`.clip[data-path="${CSS.escape(path)}"]`);
+      if (row) { row.closest("details").open = true; row.scrollIntoView({ block: "nearest" }); }
+    }
+  }
+
+  // Список новые сверху: «предыдущая» — более ранняя запись.
+  $("prev").addEventListener("click", () => step(+1));
+  $("next").addEventListener("click", () => step(-1));
+  function step(dir) {
+    const i = clips.findIndex((c) => c.path === current);
+    const c = clips[i + dir];
+    if (c) play(c.path);
+  }
+  // Досмотрели — включаем следующую по времени, чтобы длинное движение шло подряд.
+  clipVideo.addEventListener("ended", () => step(-1));
+
+  setInterval(() => { if (view === "records") loadRecordings(); }, 15000);
+
+  // ---------- старт ----------
+  function route() {
+    const hash = location.hash.slice(1);
+    if (hash.startsWith("rec")) setView("records", decodeURIComponent(hash.slice(4)) || null);
+    else setView("live");
+  }
+  window.addEventListener("hashchange", route);
+  // Открыта с главной в своей вкладке — «←» закрывает её, и под ней снова главная.
+  // Открыта напрямую — обычная ссылка на главную.
+  document.getElementById("back").addEventListener("click", (e) => {
+    let fromPanel = false;
+    try {
+      fromPanel = Boolean(window.opener && !window.opener.closed && window.opener.location.origin === location.origin);
+    } catch { /* главная уже на другом адресе — тогда просто ссылка */ }
+    if (!fromPanel) return;
+    e.preventDefault();
+    window.close();
+    setTimeout(() => { if (!window.closed) location.href = "/"; }, 200);  // браузер не дал закрыть
+  });
+  route();
+  loadRecordings();
+  poll();
+  setInterval(poll, 2000);
+</script>
+</body>
+</html>

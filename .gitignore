@@ -1,0 +1,25 @@
+# Секреты и данные остаются на Pi, в репозиторий не попадают (см. README, «Что не в репозитории»).
+
+# Пароли: панель (webcam.env), AdGuard Home (adguard.env). Образцы — *.env.example.
+*.env
+!*.env.example
+# Сессии входа в панель
+webcam/sessions.json
+# Записи камеры
+webcam/recordings/
+# Zigbee2MQTT: в configuration.yaml ключ Zigbee-сети. Образец — zigbee/configuration.example.yaml
+zigbee/data/
+# Home Assistant: база, журналы, токены (.storage). Берём только свой YAML.
+homeassistant/config/*
+!homeassistant/config/configuration.yaml
+!homeassistant/config/automations.yaml
+!homeassistant/config/scenes.yaml
+!homeassistant/config/scripts.yaml
+
+# Мусор
+__pycache__/
+*.pyc
+*.tmp
+*.part
+*.bak*
+.DS_Store

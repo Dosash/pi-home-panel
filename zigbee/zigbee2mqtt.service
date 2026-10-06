@@ -1,0 +1,22 @@
+[Unit]
+Description=Zigbee2MQTT
+After=network-online.target mosquitto.service
+Wants=mosquitto.service
+StartLimitIntervalSec=0
+
+[Service]
+User=dosash
+Group=dosash
+SupplementaryGroups=dialout
+Environment=ZIGBEE2MQTT_DATA=/home/dosash/project/zigbee/data
+Environment=Z2M_ONBOARD_NO_SERVER=1
+WorkingDirectory=/opt/zigbee2mqtt
+# Без Zigbee-адаптера не запускаемся вовсе (иначе бесконечные падения и перезапуски).
+# Список адаптеров берётся из zigbee-herdsman (adapters.py). Когда адаптер вставят, сервис запустит 99-zigbee-adapter.rules.
+ExecCondition=/usr/bin/python3 /home/dosash/project/zigbee/adapters.py --check
+ExecStart=/usr/bin/node index.js
+Restart=on-failure
+RestartSec=20
+
+[Install]
+WantedBy=multi-user.target
