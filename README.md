@@ -22,7 +22,11 @@ LTE-модем ──eth1──► Raspberry Pi ──wlan0──► Wi-Fi «PiH
 | ![Интернет](docs/screenshots/internet.png) | ![Raspberry Pi](docs/screenshots/system.png) |
 | Интернет: LTE-модем и доступ извне через ZeroTier | Мониторинг Pi: температура, процессор, память, процессы |
 
-<p align="center"><img src="docs/screenshots/mobile.png" width="260" alt="Панель на телефоне"><br>На телефоне</p>
+<details>
+<summary>📱 На телефоне</summary>
+<br>
+<p align="center"><img src="docs/screenshots/mobile.png" width="260" alt="Панель на телефоне"></p>
+</details>
 
 Камера, LTE-модем и устройства в Wi-Fi на скриншотах — демонстрационные данные (камера не подключена,
 SIM не вставлена); личное — QR-код с паролем Wi-Fi, ID сети ZeroTier, адреса устройств, часть статистики
