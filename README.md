@@ -12,6 +12,22 @@ LTE-модем ──eth1──► Raspberry Pi ──wlan0──► Wi-Fi «PiH
                          └─ ZeroTier — доступ извне
 ```
 
+## Как выглядит
+
+![Главная: плитки сервисов и трей со свёрнутыми разделами](docs/screenshots/home.png)
+
+| ![Wi-Fi](docs/screenshots/wifi.png) | ![AdGuard Home](docs/screenshots/adguard.png) |
+|:---:|:---:|
+| Wi-Fi: устройства в сети, QR-код для подключения, настройки | AdGuard Home: блокировки за сутки, график, топы |
+| ![Интернет](docs/screenshots/internet.png) | ![Raspberry Pi](docs/screenshots/system.png) |
+| Интернет: LTE-модем и доступ извне через ZeroTier | Мониторинг Pi: температура, процессор, память, процессы |
+
+<p align="center"><img src="docs/screenshots/mobile.png" width="260" alt="Панель на телефоне"><br>На телефоне</p>
+
+Камера, LTE-модем и устройства в Wi-Fi на скриншотах — демонстрационные данные (камера не подключена,
+SIM не вставлена); личное — QR-код с паролем Wi-Fi, ID сети ZeroTier, адреса устройств, часть статистики
+AdGuard — размыто.
+
 ## Части
 
 | Папка | Что это |
