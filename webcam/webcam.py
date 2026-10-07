@@ -42,6 +42,7 @@ from modem import HiLink, ModemError, internet  # noqa: E402
 from wifi import Hotspot  # noqa: E402
 from bt import Bluetooth  # noqa: E402
 from adguard import AdGuard  # noqa: E402
+from sms import SmsAlerts  # noqa: E402
 from zt import ZeroTier  # noqa: E402
 from sysmon import SystemMonitor  # noqa: E402
 from auth import COOKIE, Auth  # noqa: E402
@@ -844,6 +845,7 @@ class Handler(BaseHTTPRequestHandler):
     wifi: Hotspot
     bt: Bluetooth
     adguard: AdGuard
+    sms: SmsAlerts
     adguard_port: int
     transcoders: dict
     auth: Auth
@@ -886,6 +888,7 @@ class Handler(BaseHTTPRequestHandler):
             "/wifi-qr.svg": self.wifi_qr,
             "/api/bluetooth": self.bt_status,
             "/api/adguard": self.adguard_status,
+            "/api/sms": self.sms_status,
             "/stream.mjpg": self.stream,
             "/audio.pcm": self.audio,
             "/snapshot.jpg": self.snapshot,
@@ -923,6 +926,9 @@ class Handler(BaseHTTPRequestHandler):
             elif self.route == "/api/adguard":
                 if self.require_login():
                     self.adguard_command()
+            elif self.route == "/api/sms":
+                if self.require_login():
+                    self.sms_command()
             elif not self.route.startswith("/z2m"):
                 self.send_error(HTTPStatus.NOT_FOUND)
             elif self.require_login():
@@ -1079,6 +1085,13 @@ class Handler(BaseHTTPRequestHandler):
     def adguard_status(self):
         body = {**self.adguard.status(), "url": panel.ha_url(self, self.adguard_port)}
         self.send_body(json.dumps(body, ensure_ascii=False).encode(), "application/json; charset=utf-8")
+
+    def sms_status(self):
+        self.send_body(json.dumps(self.sms.status(), ensure_ascii=False).encode(),
+                       "application/json; charset=utf-8")
+
+    def sms_command(self):
+        self.json_command(lambda data: self.sms.command(str(data.get("action") or ""), data))
 
     def adguard_command(self):
         self.json_command(lambda data: self.adguard.command(str(data.get("action") or ""), data.get("minutes")))
@@ -1357,6 +1370,7 @@ def main():
     ha_server.daemon_threads = True
     threading.Thread(target=ha_server.serve_forever, daemon=True, name="ha-proxy").start()
     Handler.adguard, Handler.adguard_port = AdGuard(), args.adguard_port
+    Handler.sms = SmsAlerts(Handler.modem)
     panel.AdGuardProxyHandler.auth, panel.AdGuardProxyHandler.panel_port = auth, args.port
     adguard_server = ThreadingHTTPServer((args.host, args.adguard_port), panel.AdGuardProxyHandler)
     adguard_server.daemon_threads = True

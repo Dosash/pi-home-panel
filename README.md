@@ -1,7 +1,8 @@
 # pi-home-panel — домашний сервер на Raspberry Pi
 
 Raspberry Pi 4 (Debian 13) как домашний хаб: раздаёт свой Wi-Fi с интернетом от LTE-модема,
-блокирует рекламу, пишет видео по движению, собирает датчики (Bluetooth, Zigbee) в Home Assistant.
+блокирует рекламу, пишет видео по движению, собирает датчики (Bluetooth, Zigbee) в Home Assistant,
+шлёт SMS, когда пропадал свет, стало холодно или камера заметила движение.
 Всё — из одной веб-панели без входа: она видна только в локальной сети и через ZeroTier.
 
 ```
@@ -39,6 +40,7 @@ AdGuard — размыто.
 | [`webcam/`](webcam/README.md) | веб-панель: камера с записью по движению, Wi-Fi (устройства, QR-код, настройки), Bluetooth и BLE-датчики, AdGuard, интернет и модем, мониторинг Pi |
 | [`network/`](network/README.md) | сеть Pi: точка доступа «PiHome», кабель, DHCP и локальные имена |
 | [`modem/`](modem/README.md) | LTE-модем Huawei и сторож резервного канала |
+| [`alerts/`](alerts/README.md) | SMS-оповещения через модем: пропадало питание, холодно у датчика, движение у камеры — настройка в панели |
 | [`adguard/`](adguard/README.md) | AdGuard Home: блокировка рекламы, шифрованный DNS наружу |
 | [`homeassistant/`](homeassistant/README.md) | Home Assistant в Docker |
 | [`zigbee/`](zigbee/README.md) | Zigbee2MQTT, запускается сам, когда вставлен адаптер |
@@ -65,6 +67,7 @@ AdGuard — размыто.
 | `homeassistant/config/` | всё, кроме своего YAML: база, журналы, токены (`.storage`) | — |
 | `webcam/recordings/` | записи камеры | — |
 | профиль NetworkManager `hotspot` | пароль Wi-Fi «PiHome»: `sudo nmcli -s -g 802-11-wireless-security.psk connection show hotspot` | `network/README.md` |
+| `alerts/settings.json` | номера телефонов для SMS и что включено (меняется в панели, раздел «SMS») | — |
 | `homeassistant/.env` | часовой пояс (`TZ=…`) для контейнера HA | — |
 | `/opt/AdGuardHome/AdGuardHome.yaml` | настройки AdGuard Home (описаны в `adguard/README.md`) | — |
 
@@ -72,7 +75,7 @@ AdGuard — размыто.
 
 По порядку, в каждой папке README с командами: `network` (точка доступа и кабель) → `modem`
 (резервный канал) → `webcam` (systemd-юнит панели, пакеты GStreamer) → `homeassistant`
-(`docker compose up -d`) → `zigbee` → `adguard`.
+(`docker compose up -d`) → `zigbee` → `adguard` → `alerts`.
 
 ## Лицензия
 
@@ -82,4 +85,5 @@ MIT — см. `LICENSE`. Исключение: `webcam/vendor/segno` — биб�
 
 ```sh
 cd webcam && python3 -m unittest discover -s tests   # расшифровка BLE-датчиков
+cd alerts && python3 -m unittest discover -s tests   # SMS-оповещения: питание, температура
 ```

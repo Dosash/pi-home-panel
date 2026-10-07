@@ -3,6 +3,8 @@
 # Пароли: панель (webcam.env), AdGuard Home (adguard.env). Образцы — *.env.example.
 *.env
 !*.env.example
+# Номера телефонов для SMS-оповещений
+alerts/settings.json
 # Сессии входа в панель
 webcam/sessions.json
 # Записи камеры

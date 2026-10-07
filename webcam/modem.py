@@ -29,6 +29,8 @@ CONNECTION = {"900": "connecting", "901": "connected", "902": "disconnected", "9
 SIM = {"257": "ready", "255": "absent", "260": "pin", "261": "puk", "258": "invalid"}
 MODES = {"auto": "00", "2g": "01", "3g": "02", "4g": "03"}
 SESSION_ERRORS = {"125001", "125002", "125003"}  # сессия или токен больше не действуют
+SMS_UCS2, SMS_7BIT = 0, 1  # кодировка в send-sms (<Reserved>) — так их нумерует веб-интерфейс модема
+SMS_WAIT = 60  # сек — дольше модем одно SMS не отправляет
 
 # CurrentNetworkTypeEx → (поколение, название)
 NETWORK_EX = {
@@ -90,9 +92,10 @@ class HiLink:
                 raise
 
     def post(self, path, fields):
-        body = ("<?xml version='1.0' encoding='UTF-8'?><request>"
-                + "".join(f"<{k}>{escape(str(v))}</{k}>" for k, v in fields.items())
-                + "</request>")
+        return self._post_xml(path, "".join(f"<{k}>{escape(str(v))}</{k}>" for k, v in fields.items()))
+
+    def _post_xml(self, path, inner):
+        body = "<?xml version='1.0' encoding='UTF-8'?><request>" + inner + "</request>"
         headers = {**self._session(), "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"}
         req = urllib.request.Request(self.base + path, body.encode(), headers)
         return self._parse(urllib.request.urlopen(req, timeout=TIMEOUT + 7).read())
@@ -212,6 +215,37 @@ class HiLink:
             self.post("/api/device/control", {"Control": 1})
             self.device = None
             self._changed()
+
+    # ---------- SMS ----------
+
+    def send_sms(self, phones, text):
+        """Отправляет SMS и ждёт итога от модема: (ушло, не ушло) — списки номеров.
+
+        Кириллица идёт в UCS-2 — 70 символов на одно SMS; длинное (до 268) модем делит на части сам.
+        """
+        with self.lock:
+            if self.get("/api/pin/status").get("SimState") != "257":
+                raise ModemError("в модеме нет готовой SIM-карты")
+            content = escape(text)
+            self._post_xml("/api/sms/send-sms", (
+                "<Index>-1</Index><Phones>" + "".join(f"<Phone>{escape(p)}</Phone>" for p in phones)
+                + f"</Phones><Sca></Sca><Content>{content}</Content>"
+                # Length — как у веб-интерфейса: длина уже экранированного текста в символах JS (UTF-16)
+                + f"<Length>{len(content.encode('utf-16-le')) // 2}</Length>"
+                + f"<Reserved>{SMS_7BIT if text.isascii() else SMS_UCS2}</Reserved>"
+                + f"<Date>{time.strftime('%Y-%m-%d %H:%M:%S')}</Date>"))
+        deadline = time.monotonic() + SMS_WAIT
+        while True:  # итог ждём, не держа модем: панель тем временем читает его состояние
+            time.sleep(2)
+            with self.lock:
+                st = self.get("/api/sms/send-status")
+            # Phone — номер в работе; пусто и есть итог — модем закончил
+            if not st.get("Phone") and (st.get("SucPhone") or st.get("FailPhone")):
+                break
+            if time.monotonic() > deadline:
+                raise ModemError("модем не доложил, ушло ли SMS")
+        numbers = lambda s: [p for p in (s or "").split(",") if p]
+        return numbers(st.get("SucPhone")), numbers(st.get("FailPhone"))
 
 
 def default_routes():

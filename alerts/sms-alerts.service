@@ -1,0 +1,17 @@
+[Unit]
+Description=SMS alerts via the LTE modem: power loss, low temperature, camera motion
+After=NetworkManager.service mosquitto.service
+
+[Service]
+User=dosash
+Group=dosash
+StateDirectory=sms-alerts
+ExecStart=/usr/bin/python3 /home/dosash/project/alerts/alerts.py
+Restart=always
+RestartSec=10
+# Пока модем отправляет SMS (до минуты), сервис не остановится. Убить раньше — не успеет
+# отметить штатное выключение, и после загрузки придёт SMS о «пропаже питания».
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target

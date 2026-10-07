@@ -475,6 +475,58 @@
   td { padding: 4px 0; border-top: 1px solid var(--line); }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; padding-left: 12px; }
   td.name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 0; width: 60%; }
+
+  /* ---------- SMS-оповещения ---------- */
+  .sms-form { display: flex; flex-direction: column; gap: 12px; }
+  .sms-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .sms-card { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .sms-wide { grid-column: 1 / -1; }
+  .sms-toggle { display: inline-flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600;
+                cursor: pointer; align-self: flex-start; }
+  .sms-card .desc { margin: 0; }
+  .sms-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; transition: opacity .2s; }
+  .sms-opts.off { opacity: .45; }
+  .sms-opts label { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+  #sms-box select, #sms-box input[type=text], #sms-box input[type=number] {
+    background: var(--btn);
+    color: var(--text);
+    border: 0;
+    border-radius: 6px;
+    padding: 7px 10px;
+    font: inherit;
+    font-size: 14px;
+    max-width: 100%;
+  }
+  #sms-box input[type=number] { width: 6em; }
+  .sms-phones { flex: 0 1 30em; min-width: 0; }  /* на телефоне поле сжимается, а не вылезает за рамку */
+  #sms-box #sms-phones { flex: 1; min-width: 0; width: auto; }
+  #sms-box select:focus-visible, #sms-box input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .sms-sensor {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) minmax(0, 12em) 6.5em;  /* у всех строк столбцы вровень */
+    gap: 10px;
+    align-items: center;
+    padding: 8px 0;
+    border-top: 1px solid var(--line);
+  }
+  .sms-sensor input[type=checkbox] { width: 18px; height: 18px; margin: 0; accent-color: var(--series); cursor: pointer; }
+  .sms-sensor .nm span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sms-sensor .nm small { display: block; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+  #sms-box .sms-sensor input[type=text] { width: 100%; }
+  .sms-sensor .t { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+  .sms-sensor .t.muted { color: var(--muted); font-weight: 400; }
+  .sms-log-row { display: grid; grid-template-columns: 8em minmax(0, 1fr); gap: 12px; padding: 6px 0;
+                 border-top: 1px solid var(--line); font-size: 13px; }
+  .sms-log-row .when { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .sms-log-row.queued .when { color: var(--status-warning); }
+  .stat .value.small { font-size: 15px; }
+  @media (max-width: 640px) {
+    .sms-grid { grid-template-columns: minmax(0, 1fr); }
+    .sms-sensor { grid-template-columns: auto minmax(0, 1fr) 6.5em; }
+    #sms-box .sms-sensor input[type=text] { grid-column: 2 / -1; grid-row: 2; }
+  }
+  .sms-sensors { transition: opacity .2s; }
+  .sms-sensors.off { opacity: .45; }
 </style>
 </head>
 <body>
@@ -517,6 +569,11 @@
   <button class="chip" type="button" data-section="internet" aria-controls="internet" aria-expanded="false">
     <span class="chip-title">Интернет</span>
     <span class="chip-status" id="tray-internet"></span>
+    <svg class="chev" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M3.5 6l4.5 4.5 4.5-4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button class="chip" type="button" data-section="sms" aria-controls="sms" aria-expanded="false">
+    <span class="chip-title">SMS</span>
+    <span class="chip-status" id="tray-sms"></span>
     <svg class="chev" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M3.5 6l4.5 4.5 4.5-4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </button>
   <button class="chip" type="button" data-section="wifi" aria-controls="wifi" aria-expanded="false">
@@ -660,6 +717,92 @@
         <span class="value net" id="zt-tx">—</span>
         <span class="sub" id="zt-total"></span>
       </div>
+    </div>
+  </div>
+</div>
+</section>
+<section class="block fold folded" id="sms" aria-labelledby="sms-title" inert>
+<div class="fold-inner">
+  <div class="block-box" id="sms-box">
+    <div class="block-head">
+      <h2 id="sms-title">SMS-оповещения</h2>
+      <span class="meta" id="sms-meta">загрузка…</span>
+      <button class="minimize" type="button" data-section="sms" aria-label="Свернуть в трей" title="Свернуть в трей"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 10l4.5-4.5 4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <span class="label">Сервис</span>
+        <span class="status" id="sms-service"></span>
+        <span class="sub" id="sms-service-sub"></span>
+      </div>
+      <div class="stat">
+        <span class="label">SIM-карта в модеме</span>
+        <span class="status" id="sms-sim"></span>
+        <span class="sub" id="sms-sim-sub"></span>
+      </div>
+      <div class="stat">
+        <span class="label">Последнее SMS</span>
+        <span class="value small" id="sms-last">—</span>
+        <span class="sub" id="sms-last-sub"></span>
+      </div>
+    </div>
+    <form class="sms-form" id="sms-form" autocomplete="off" novalidate>
+      <div class="controls">
+        <label class="sms-phones">Номера
+          <input type="text" id="sms-phones" inputmode="tel" spellcheck="false"
+                 placeholder="+7 999 123-45-67" title="Несколько номеров — через запятую">
+        </label>
+        <button type="button" id="sms-test">Отправить проверочное SMS</button>
+        <span class="msg" id="sms-test-msg" role="status"></span>
+      </div>
+      <div class="sms-grid">
+        <div class="panel2 sms-card">
+          <label class="switch sms-toggle"><input type="checkbox" id="sms-power"> Пропало питание</label>
+          <p class="desc">Когда Pi снова включится после аварийного выключения: когда пропал свет и сколько его
+            не было. Обычные выключения и перезагрузки — без SMS.</p>
+        </div>
+        <div class="panel2 sms-card">
+          <label class="switch sms-toggle"><input type="checkbox" id="sms-motion"> Движение у камеры</label>
+          <p class="desc">Как только камера заметит движение. Ролики — в разделе «Движение».</p>
+          <div class="sms-opts" id="sms-motion-opts">
+            <label>Не чаще
+              <select id="sms-pause">
+                <option value="5">раза в 5 минут</option>
+                <option value="15">раза в 15 минут</option>
+                <option value="30">раза в 30 минут</option>
+                <option value="60">раза в час</option>
+                <option value="180">раза в 3 часа</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div class="panel2 sms-card sms-wide">
+          <label class="switch sms-toggle"><input type="checkbox" id="sms-temp"> Холодно</label>
+          <p class="desc">Если у отмеченного датчика холоднее порога дольше 5 минут. Потом — когда станет на 1 °C
+            теплее порога, и если датчик замолчит: на морозе первыми садятся батарейки.</p>
+          <div class="sms-opts" id="sms-temp-opts">
+            <label>Холоднее <input type="number" id="sms-min" step="0.5" min="-40" max="40"> °C</label>
+            <label>Молчание датчика
+              <select id="sms-stale">
+                <option value="60">сообщить через час</option>
+                <option value="120">сообщить через 2 часа</option>
+                <option value="360">сообщить через 6 часов</option>
+                <option value="720">сообщить через 12 часов</option>
+                <option value="0">не сообщать</option>
+              </select>
+            </label>
+          </div>
+          <div class="sms-sensors" id="sms-sensors"></div>
+        </div>
+      </div>
+      <div class="controls">
+        <button type="submit" id="sms-save">Сохранить</button>
+        <span class="msg" id="sms-msg" role="status"></span>
+      </div>
+    </form>
+    <div class="panel2">
+      <div class="title">Последние SMS</div>
+      <div id="sms-log"></div>
     </div>
   </div>
 </div>
@@ -2337,6 +2480,254 @@
 
   refreshAdGuard();
   setInterval(() => { if (!document.hidden) refreshAdGuard(); }, 10000);
+
+  // ---------- SMS-оповещения ----------
+  // Шлёт их сервис sms-alerts (~/project/alerts); здесь его настройки и что он отправил.
+  const SMS_SOURCES = { zigbee: "Zigbee", bluetooth: "Bluetooth" };
+  let smsDirty = false, smsBusy = false, smsJobSeen;
+
+  function smsWhen(ts) {
+    const d = new Date(ts * 1000), day = dayLabel(d);
+    return day === "Сегодня" ? hhmm(d) : `${day.toLowerCase()}, ${hhmm(d)}`;
+  }
+
+  function setOption(select, value) {
+    // В файле может оказаться значение не из списка — добавим его, чтобы не потерять при сохранении.
+    if (![...select.options].some((o) => Number(o.value) === value)) select.add(new Option(`${value} мин`, value));
+    select.value = String(value);
+  }
+
+  function smsOptsState() {  // выключенное приглушаем, но значения не прячем
+    $("sms-motion-opts").classList.toggle("off", !$("sms-motion").checked);
+    $("sms-temp-opts").classList.toggle("off", !$("sms-temp").checked);
+    $("sms-sensors").classList.toggle("off", !$("sms-temp").checked);
+  }
+
+  function fillSmsForm(st) {
+    $("sms-phones").value = st.phones.join(", ");
+    $("sms-power").checked = st.power.enabled;
+    $("sms-motion").checked = st.motion.enabled;
+    setOption($("sms-pause"), st.motion.pause);
+    $("sms-temp").checked = st.temperature.enabled;
+    $("sms-min").value = String(st.temperature.min);
+    setOption($("sms-stale"), st.temperature.stale);
+    smsOptsState();
+  }
+
+  function smsSensorValue(row, sensor) {
+    const t = row.querySelector(".t");
+    t.classList.toggle("muted", !sensor);
+    if (!sensor) {
+      t.textContent = "нет данных";
+      t.title = "";
+      return;
+    }
+    t.textContent = `${nf1.format(sensor.value)} °C`;
+    t.title = `обновлено ${smsWhen(sensor.at)}`;
+  }
+
+  function smsSensorRow(id, sensor, chosen) {
+    const row = document.createElement("div");
+    row.className = "sms-sensor";
+    row.dataset.id = id;
+    const name = sensor?.name || chosen?.label || id;
+    const check = document.createElement("input");
+    check.type = "checkbox";
+    check.checked = Boolean(chosen);
+    check.setAttribute("aria-label", `Следить за датчиком ${name}`);
+    const nm = document.createElement("div");
+    nm.className = "nm";
+    const title = document.createElement("span");
+    title.textContent = name;
+    const sub = document.createElement("small");
+    sub.textContent = [sensor && SMS_SOURCES[sensor.source], id !== name && id].filter(Boolean).join(" · ")
+      || "пока не видно";
+    nm.append(title, sub);
+    const label = document.createElement("input");
+    label.type = "text";
+    label.maxLength = 32;
+    label.placeholder = "подпись в SMS";
+    label.value = chosen && chosen.label !== name ? chosen.label : "";
+    label.setAttribute("aria-label", `Как назвать ${name} в SMS`);
+    const t = document.createElement("span");
+    t.className = "t";
+    row.append(check, nm, label, t);
+    smsSensorValue(row, sensor);
+    return row;
+  }
+
+  function renderSmsSensors(s, full) {
+    const box = $("sms-sensors");
+    const seen = new Map(s.sensors.map((x) => [x.id.toLowerCase(), x]));
+    if (full) {
+      const chosen = new Map(s.settings.temperature.sensors.map((x) => [x.id.toLowerCase(), x]));
+      const ids = [...chosen.keys(), ...[...seen.keys()].filter((k) => !chosen.has(k))];
+      box.replaceChildren(...ids.map((k) => smsSensorRow((chosen.get(k) || seen.get(k)).id, seen.get(k), chosen.get(k))));
+    } else {  // форму правят — только свежие показания и новые датчики, отметки не трогаем
+      const rows = new Map([...box.querySelectorAll(".sms-sensor")].map((r) => [r.dataset.id.toLowerCase(), r]));
+      for (const [k, x] of seen) {
+        if (rows.has(k)) smsSensorValue(rows.get(k), x);
+        else {
+          box.querySelector(".empty")?.remove();
+          box.append(smsSensorRow(x.id, x, null));
+        }
+      }
+    }
+    if (!box.querySelector(".sms-sensor")) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "Датчиков с температурой пока не видно. Подключите Zigbee- или Bluetooth-датчик — "
+        + "через минуту он появится здесь, отметьте его.";
+      box.replaceChildren(empty);
+    }
+  }
+
+  function smsFormData() {
+    const rows = [...$("sms-sensors").querySelectorAll(".sms-sensor")]
+      .filter((r) => r.querySelector("input[type=checkbox]").checked);
+    return {
+      phones: $("sms-phones").value,
+      power: { enabled: $("sms-power").checked },
+      motion: { enabled: $("sms-motion").checked, pause: Number($("sms-pause").value) },
+      temperature: {
+        enabled: $("sms-temp").checked,
+        min: $("sms-min").value,
+        stale: Number($("sms-stale").value),
+        sensors: rows.map((r) => ({
+          id: r.dataset.id,
+          label: r.querySelector("input[type=text]").value.trim() || r.querySelector(".nm span").textContent,
+        })),
+      },
+    };
+  }
+
+  function renderSmsJob(job) {
+    const msg = $("sms-test-msg");
+    $("sms-test").disabled = job?.state === "sending";
+    if (smsJobSeen === undefined) {  // при открытии страницы старые итоги не показываем
+      smsJobSeen = job && job.state !== "sending" ? job.time : null;
+      if (job?.state !== "sending") return;
+    }
+    if (!job || job.time === smsJobSeen) return;
+    if (job.state === "sending") {
+      msg.className = "msg";
+      msg.textContent = "отправляю… модем ждёт ответа сети, до минуты";
+      return;
+    }
+    smsJobSeen = job.time;
+    msg.className = job.state === "failed" ? "msg error" : "msg";
+    msg.textContent = job.state === "failed" ? `не ушло: ${job.error}` : `ушло на ${job.ok.join(", ")} — проверьте телефон`;
+  }
+
+  function smsLogRow(when, text, queued) {
+    const row = document.createElement("div");
+    row.className = "sms-log-row" + (queued ? " queued" : "");
+    const w = document.createElement("span");
+    w.className = "when";
+    w.textContent = when;
+    const t = document.createElement("span");
+    t.textContent = text;
+    row.append(w, t);
+    return row;
+  }
+
+  async function refreshSms() {
+    if (smsBusy) return;
+    smsBusy = true;
+    let s;
+    try {
+      s = await api("api/sms");
+    } catch {
+      $("sms-box").classList.add("stale");
+      $("sms-meta").textContent = "нет связи с Pi";
+      trayStatus("sms", "warning", "нет связи с Pi");
+      return;
+    } finally {
+      smsBusy = false;
+    }
+    $("sms-box").classList.remove("stale");
+    const st = s.settings;
+    renderSmsJob(s.job);
+    if (!smsDirty) fillSmsForm(st);
+    renderSmsSensors(s, !smsDirty);
+
+    setStatus($("sms-service"), s.running ? "good" : "critical", s.running ? "работает" : "не отвечает");
+    $("sms-service-sub").textContent = !s.running ? "на Pi: sudo systemctl status sms-alerts"
+      : s.outbox.length ? `ждут отправки: ${s.outbox.length}` : "очередь пуста";
+    const sim = s.sim;
+    setStatus($("sms-sim"), sim === "ready" ? "good" : sim == null ? "critical" : "warning",
+      sim === "ready" ? "готова" : sim == null ? "модем не отвечает"
+      : sim === "absent" ? "нет SIM-карты" : "SIM-карта не готова");
+    $("sms-sim-sub").textContent = sim === "ready" ? "SMS уходят сразу" : "SMS подождут в очереди";
+    const last = s.log[0];
+    $("sms-last").textContent = last ? smsWhen(last.at) : "—";
+    $("sms-last-sub").textContent = last ? last.text : "ещё не было";
+    $("sms-meta").textContent = s.error ? `не отправить: ${s.error.text}` : "через LTE-модем — интернет для SMS не нужен";
+
+    const log = [...s.outbox.map((text) => smsLogRow("в очереди", text, true)),
+                 ...s.log.map((e) => smsLogRow(smsWhen(e.at), e.text))];
+    if (!log.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "пока ни одного";
+      log.push(empty);
+    }
+    $("sms-log").replaceChildren(...log);
+
+    const on = [st.power.enabled && "питание", st.temperature.enabled && st.temperature.sensors.length && "холод",
+                st.motion.enabled && "движение"].filter(Boolean);
+    if (!s.running) trayStatus("sms", "critical", "сервис не отвечает");
+    else if (!st.phones.length) trayStatus("sms", "warning", "нет номера");
+    else if (!on.length) trayStatus("sms", null, "всё выключено");
+    else if (sim !== "ready") trayStatus("sms", "warning", sim === "absent" ? "нет SIM-карты" : "SIM не готова");
+    else if (s.outbox.length) trayStatus("sms", "warning", `отправляю ${s.outbox.length}`);
+    else trayStatus("sms", "good", on.join(" · "));
+  }
+
+  $("sms-form").addEventListener("input", () => { smsDirty = true; smsOptsState(); });
+  $("sms-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const msg = $("sms-msg");
+    msg.className = "msg";
+    msg.textContent = "сохраняю…";
+    $("sms-save").disabled = true;
+    try {
+      await api("api/sms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "save", settings: smsFormData() }),
+      });
+      smsDirty = false;
+      msg.textContent = "сохранено — сервис применит сам через пару секунд";
+    } catch (err) {
+      msg.className = "msg error";
+      msg.textContent = err.name === "TypeError" ? "не получилось: нет связи с Pi" : `не получилось: ${err.message}`;
+    }
+    $("sms-save").disabled = false;
+    refreshSms();
+  });
+  $("sms-test").addEventListener("click", async () => {
+    const msg = $("sms-test-msg");
+    msg.className = "msg";
+    msg.textContent = "отправляю…";
+    $("sms-test").disabled = true;
+    try {
+      await api("api/sms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "test", phones: $("sms-phones").value }),
+      });
+    } catch (err) {
+      msg.className = "msg error";
+      msg.textContent = err.name === "TypeError" ? "не получилось: нет связи с Pi" : `не получилось: ${err.message}`;
+      $("sms-test").disabled = false;
+      return;
+    }
+    setTimeout(refreshSms, 1000);
+  });
+
+  refreshSms();
+  setInterval(() => { if (!document.hidden) refreshSms(); }, 5000);
 </script>
 </body>
 </html>
