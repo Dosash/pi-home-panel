@@ -51,6 +51,7 @@ AdGuard — размыто.
 | [`zapret/`](zapret/README.md) | обход блокировок YouTube и Discord для Wi-Fi: zapret со стратегиями flowseal, панель с проверкой и подбором стратегии |
 | [`homeassistant/`](homeassistant/README.md) | Home Assistant в Docker |
 | [`zigbee/`](zigbee/README.md) | Zigbee2MQTT, запускается сам, когда вставлен адаптер |
+| `tools/` | для разработки: SSH на Pi, выкладка на Pi, тесты, проверка секретов перед пушем |
 
 ## Адреса
 
@@ -87,6 +88,17 @@ AdGuard — размыто.
 (резервный канал) → `webcam` (systemd-юнит панели, пакеты GStreamer) → `homeassistant`
 (`docker compose up -d`) → `zigbee` → `adguard` → `alerts` → `zapret`.
 
+## Разработка
+
+Как править проект, выкладывать на Pi и пушить, не раскрыв секретов, — [`CONTRIBUTING.md`](CONTRIBUTING.md).
+Правила для ИИ-ассистентов (Claude Code и др.) — [`CLAUDE.md`](CLAUDE.md).
+
+```sh
+tools/test.sh                 # все тесты
+tools/deploy.sh --restart     # выложить изменения на Pi и перезапустить службы
+tools/check-secrets.sh        # перед git push
+```
+
 ## Лицензия
 
 MIT — см. `LICENSE`. Исключение: `webcam/vendor/segno` — библиотека segno, BSD-3-Clause (`webcam/vendor/segno/LICENSE`).
@@ -96,7 +108,8 @@ MIT — см. `LICENSE`. Исключение: `webcam/vendor/segno` — биб�
 ## Тесты
 
 ```sh
-cd webcam && python3 -m unittest discover -s tests   # расшифровка BLE-датчиков
-cd alerts && python3 -m unittest discover -s tests   # SMS-оповещения: питание, температура
-cd zapret && python3 -m unittest discover -s tests   # стратегии flowseal → nfqws, списки, проверка
+tools/test.sh   # всё сразу; по отдельности — python3 -m unittest discover -s tests в webcam/, alerts/, zapret/
 ```
+
+Расшифровка BLE-датчиков (`webcam`), SMS-оповещения (`alerts`), стратегии flowseal → nfqws, списки
+и проверка (`zapret`).
