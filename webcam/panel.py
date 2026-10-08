@@ -1,5 +1,6 @@
 """Панель: проксирование Zigbee2MQTT и Home Assistant за общим входом, состояние сервисов."""
 import ipaddress
+import json
 import logging
 import select
 import socket
@@ -20,6 +21,8 @@ Z2M_PORT = 8099  # интерфейс Zigbee2MQTT, слушает только 1
 # Какие USB-устройства — Zigbee-адаптеры, знает zigbee-herdsman; adapters.py достаёт это из него.
 ZIGBEE_ADAPTERS = Path.home() / "project/zigbee/adapters.py"
 HA_PORT = 8123  # Home Assistant, слушает только 127.0.0.1
+ZAPRET_PANEL_PORT = 45464  # своя панель zapret, ~/project/zapret
+ZAPRET_SETTINGS = Path.home() / "project/zapret/settings.json"
 
 # Заголовки одного соединения: дальше прокси их не передаёт.
 HOP_HEADERS = {
@@ -73,7 +76,18 @@ def overview():
             "adapter": zigbee_adapter(),
         },
         "homeassistant": {"running": port_open(HA_PORT)},
+        "zapret": zapret(),
     }
+
+
+def zapret():
+    """Обход блокировок для кнопки в шапке: служба, панель и выбранная стратегия."""
+    try:
+        settings = json.loads(ZAPRET_SETTINGS.read_text())
+    except (OSError, ValueError):
+        settings = {}
+    return {"service": service_state("zapret"), "panel": port_open(ZAPRET_PANEL_PORT),
+            "enabled": settings.get("enabled", True), "strategy": settings.get("strategy")}
 
 
 def request_host(handler):

@@ -51,6 +51,7 @@
     font-size: 14px;
   }
   .button:hover { background: var(--btn-hover); }
+  .zapret-btn { display: inline-flex; align-items: center; gap: 8px; }
   main {
     max-width: 1100px;
     margin: 0 auto;
@@ -532,6 +533,8 @@
 <body>
 <header>
   <h1>Дом</h1>
+  <a class="button zapret-btn" href="#" id="zapret-link" target="pi-zapret" title="Обход блокировок для Wi-Fi Pi">
+    <span class="dot" id="zapret-dot"></span>Настройка zapret</a>
   <a class="button" href="/logout" id="logout">Выйти</a>
 </header>
 <main>
@@ -1102,6 +1105,12 @@
     }
 
     $("ha-link").href = s.ha_url;
+    // zapret: своя панель на соседнем порту — открывается в отдельном окне
+    const zp = s.zapret;
+    $("zapret-link").href = s.zapret_url;
+    $("zapret-dot").className = "dot " + (!zp.enabled ? "" : zp.service === "active" ? "ok" : "bad");
+    $("zapret-link").title = !zp.enabled ? "Обход выключен"
+      : zp.service === "active" ? `Обход работает · стратегия ${zp.strategy || "?"}` : "zapret не запущен";
     $("bt-ha").href = s.ha_url + "config/integrations/dashboard";
     setState("ha", s.homeassistant.running ? "ok" : "warn",
              s.homeassistant.running ? "работает" : "запускается…");

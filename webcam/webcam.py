@@ -996,6 +996,7 @@ class Handler(BaseHTTPRequestHandler):
     def overview(self):
         body = panel.overview()
         body["ha_url"] = panel.ha_url(self, self.ha_port)
+        body["zapret_url"] = panel.ha_url(self, panel.ZAPRET_PANEL_PORT)
         body["camera"] = {
             **self.hub.status,
             "motion": self.motion.moving(),

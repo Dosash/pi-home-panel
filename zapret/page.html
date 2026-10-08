@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>zapret</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #181b21;
+    --panel-2: #1f232a;
+    --line: #2a2f37;
+    --text: #e6e8eb;
+    --muted: #8b929c;
+    --accent: #58a6ff;
+    --btn: #262a31;
+    --btn-hover: #30353d;
+    --series: #3987e5;
+    --track: #0d366b;
+    --status-good: #0ca30c;
+    --status-warning: #fab219;
+    --status-critical: #d03b3b;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body { background: var(--bg); color: var(--text); font: 15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 12px 16px; background: var(--panel); border-bottom: 1px solid var(--line);
+  }
+  header h1 { margin: 0; font-size: 18px; flex: 1; }
+  a { color: var(--accent); }
+  .button, button {
+    background: var(--btn); color: var(--text); border: 0; border-radius: 6px; padding: 7px 12px;
+    font: inherit; font-size: 14px; cursor: pointer; text-decoration: none; white-space: nowrap;
+  }
+  .button:hover, button:hover { background: var(--btn-hover); }
+  button:disabled { opacity: .5; cursor: default; }
+  button.primary { background: var(--series); }
+  button.primary:hover { background: #4a95ea; }
+  button:focus-visible, .button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  main { max-width: 1100px; margin: 0 auto; padding: 20px 16px 32px; display: flex; flex-direction: column; gap: 16px; }
+  .block { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 16px;
+           display: flex; flex-direction: column; gap: 14px; }
+  .block-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .block-head h2 { margin: 0; font-size: 16px; }
+  .block-head .meta { color: var(--muted); font-size: 13px; flex: 1; }
+  .block-head button { align-self: center; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+  .stat { background: var(--panel-2); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column;
+          gap: 4px; min-width: 0; }
+  .stat .label { color: var(--muted); font-size: 12px; }
+  .stat .value { font-size: 18px; font-weight: 600; overflow-wrap: anywhere; }
+  .stat .sub { color: var(--muted); font-size: 12px; }
+  .status { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.good { background: var(--status-good); }
+  .dot.warning { background: var(--status-warning); }
+  .dot.critical { background: var(--status-critical); }
+  .switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; }
+  .switch input { width: 40px; height: 22px; appearance: none; border-radius: 11px; background: var(--btn);
+                  position: relative; cursor: pointer; transition: background .15s; margin: 0; flex: none; }
+  .switch input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px;
+                         border-radius: 50%; background: var(--text); transition: left .15s; }
+  .switch input:checked { background: var(--series); }
+  .switch input:checked::after { left: 20px; }
+  .switch input:disabled { opacity: .5; cursor: default; }
+  .msg { color: var(--muted); font-size: 13px; }
+  .msg.error { color: var(--status-critical); }
+  .msg:empty { display: none; }
+  .job { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--panel-2);
+         border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+  .job[hidden] { display: none; }
+  .job .bar { flex: 1 1 160px; height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; }
+  .job .bar span { display: block; height: 100%; width: 0; background: var(--series); transition: width .3s; }
+  .spinner { width: 14px; height: 14px; border: 2px solid var(--muted); border-top-color: transparent;
+             border-radius: 50%; animation: spin .8s linear infinite; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+  .services { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--panel-2); border-radius: 999px;
+          padding: 4px 10px; font-size: 13px; }
+  .scroll-x { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-weight: 400; font-size: 12px; padding: 0 8px 6px 0; white-space: nowrap; }
+  td { padding: 7px 8px 7px 0; border-top: 1px solid var(--line); vertical-align: middle; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .res { display: inline-block; min-width: 64px; text-align: center; border-radius: 4px; padding: 1px 6px; font-size: 12px;
+         white-space: nowrap; }
+  .res.ok { background: rgba(12, 163, 12, .18); color: #7ee07e; }
+  .res.blocked, .res.error, .res.ssl, .res.dns { background: rgba(208, 59, 59, .2); color: #ff9a9a; }
+  .res.cut { background: rgba(250, 178, 25, .18); color: #ffd27a; }
+  .res.none { color: var(--muted); }
+  .url { color: var(--muted); font-size: 12px; display: block; overflow-wrap: anywhere; }
+  tr.current td { background: rgba(57, 135, 229, .08); }
+  .tag { display: inline-block; font-size: 11px; border-radius: 4px; padding: 0 6px; margin-left: 6px; vertical-align: 1px; }
+  .tag.cur { background: var(--series); }
+  .tag.best { background: rgba(12, 163, 12, .35); }
+  .note { color: var(--status-warning); font-size: 12px; display: block; }
+  .scorebar { display: inline-flex; align-items: center; gap: 8px; }
+  .scorebar .track { width: 70px; height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; }
+  .scorebar .track span { display: block; height: 100%; background: var(--series); }
+  .svc { font-size: 12px; white-space: nowrap; }
+  .acts { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+  .acts button { padding: 5px 9px; font-size: 13px; }
+  details.args summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+  details.args pre { white-space: pre-wrap; word-break: break-all; font-size: 11px; background: var(--bg);
+                     border-radius: 6px; padding: 8px; margin: 6px 0 0; color: var(--muted); }
+  .form { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .field { background: var(--panel-2); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .field .label { font-weight: 600; font-size: 14px; }
+  .field .hint { color: var(--muted); font-size: 12px; }
+  select, textarea {
+    background: var(--btn); color: var(--text); border: 0; border-radius: 6px; padding: 7px 10px; font: inherit;
+    font-size: 14px; width: 100%;
+  }
+  textarea { min-height: 110px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+  .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  pre.log { margin: 0; max-height: 320px; overflow: auto; background: var(--bg); border-radius: 8px; padding: 10px;
+            font-size: 12px; color: var(--muted); white-space: pre-wrap; word-break: break-all; }
+  .empty { color: var(--muted); font-size: 13px; }
+  .scheme { color: var(--muted); font-size: 13px; margin: 0; }
+  @media (max-width: 640px) {
+    .hide-sm { display: none; }
+    .res { min-width: 0; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Обход блокировок — zapret</h1>
+  <span class="status" id="hdr-state"><span class="dot"></span><span>загрузка…</span></span>
+  <a class="button" id="home" href="#">Панель Pi</a>
+</header>
+<main>
+  <section class="block" aria-labelledby="st-title">
+    <div class="block-head">
+      <h2 id="st-title">Состояние</h2>
+      <span class="meta" id="st-meta"></span>
+    </div>
+    <p class="scheme">Устройства в Wi-Fi: DNS — в AdGuard (реклама, шифрованный DNS), трафик к YouTube, Discord и сайтам
+      из списков — через zapret (nfqws правит первые пакеты, чтобы их не узнал DPI оператора), дальше — в модем.</p>
+    <div class="stats">
+      <div class="stat">
+        <span class="label">Обход</span>
+        <label class="switch"><input type="checkbox" id="enabled"> <span id="enabled-text">—</span></label>
+        <span class="sub" id="svc-sub"></span>
+      </div>
+      <div class="stat">
+        <span class="label">Стратегия</span>
+        <span class="value" id="cur-strategy">—</span>
+        <span class="sub" id="cur-sub"></span>
+      </div>
+      <div class="stat">
+        <span class="label">Последняя проверка</span>
+        <span class="value" id="chk-score">—</span>
+        <span class="sub" id="chk-sub">ещё не было</span>
+      </div>
+      <div class="stat">
+        <span class="label">Версии</span>
+        <span class="value" id="versions">—</span>
+        <span class="sub" id="ver-sub"></span>
+      </div>
+    </div>
+    <div class="job" id="job" hidden role="status">
+      <span class="spinner" id="job-spin"></span>
+      <span id="job-text"></span>
+      <span class="bar" id="job-bar" hidden><span></span></span>
+      <button type="button" id="job-cancel" hidden>Остановить</button>
+    </div>
+    <span class="msg" id="st-msg" role="status"></span>
+  </section>
+
+  <section class="block" aria-labelledby="ck-title">
+    <div class="block-head">
+      <h2 id="ck-title">Проверка</h2>
+      <span class="meta">как сейчас открываются сайты у устройств в Wi-Fi: TLS 1.2 и 1.3, первые 64 КБ</span>
+      <button type="button" class="primary" id="check">Проверить</button>
+    </div>
+    <div class="services" id="services"></div>
+    <div class="scroll-x" id="check-table"><div class="empty">Нажмите «Проверить» — займёт около 10 секунд.</div></div>
+  </section>
+
+  <section class="block" aria-labelledby="sg-title">
+    <div class="block-head">
+      <h2 id="sg-title">Стратегии</h2>
+      <span class="meta" id="sg-meta">из flowseal/zapret-discord-youtube, переведены для nfqws на Linux</span>
+      <button type="button" class="primary" id="sweep">Подобрать автоматически</button>
+    </div>
+    <p class="scheme">Проверка стратегии идёт отдельно от Wi-Fi: временный nfqws и правило только для запросов самой
+      проверки — включённая стратегия и устройства в сети её не замечают. Подбор проверяет все по очереди, около 3 минут.</p>
+    <div class="scroll-x">
+      <table>
+        <thead><tr>
+          <th>Стратегия</th>
+          <th>Результат</th>
+          <th class="hide-sm">Discord</th>
+          <th class="hide-sm">YouTube</th>
+          <th class="num"></th>
+        </tr></thead>
+        <tbody id="strategies"><tr><td colspan="5" class="empty">загрузка…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="block" aria-labelledby="set-title">
+    <div class="block-head">
+      <h2 id="set-title">Настройки</h2>
+      <span class="meta">как в service.bat у flowseal</span>
+    </div>
+    <div class="form">
+      <label class="field">
+        <span class="label">Игровой фильтр</span>
+        <select id="game">
+          <option value="off">выключен</option>
+          <option value="tcp">TCP — порты 1024–65535</option>
+          <option value="udp">UDP — порты 1024–65535</option>
+          <option value="all">TCP и UDP</option>
+        </select>
+        <span class="hint">Обход для игр на нестандартных портах (по списку IP). Нагружает Pi сильнее — включайте,
+          если игра не подключается.</span>
+      </label>
+      <label class="field">
+        <span class="label">IPSet</span>
+        <select id="ipset">
+          <option value="none">none — только по спискам доменов</option>
+          <option value="loaded">loaded — плюс адреса из списка flowseal</option>
+          <option value="any">any — любые адреса</option>
+        </select>
+        <span class="hint">any обходит всё подряд и может ломать обычные сайты; loaded — для сервисов, которые
+          заблокированы по IP без домена.</span>
+      </label>
+    </div>
+    <div class="row">
+      <button type="button" class="primary" id="save-settings">Применить</button>
+      <span class="msg" id="set-msg" role="status"></span>
+    </div>
+  </section>
+
+  <section class="block" aria-labelledby="ls-title">
+    <div class="block-head">
+      <h2 id="ls-title">Свои списки</h2>
+      <span class="meta">по строке на домен (поддомены включаются сами) или адрес</span>
+    </div>
+    <div class="form">
+      <label class="field">
+        <span class="label">Обходить ещё</span>
+        <textarea id="list-general-user.txt" spellcheck="false" placeholder="example.com"></textarea>
+        <span class="hint">Добавится к спискам flowseal (Discord, YouTube, Cloudflare…).</span>
+      </label>
+      <label class="field">
+        <span class="label">Не трогать — домены</span>
+        <textarea id="list-exclude-user.txt" spellcheck="false" placeholder="bank.ru"></textarea>
+        <span class="hint">Если сайт с обходом перестал открываться.</span>
+      </label>
+      <label class="field">
+        <span class="label">Не трогать — адреса</span>
+        <textarea id="ipset-exclude-user.txt" spellcheck="false" placeholder="203.0.113.0/24"></textarea>
+        <span class="hint">IPv4 или подсеть.</span>
+      </label>
+    </div>
+    <div class="row">
+      <button type="button" class="primary" id="save-lists">Сохранить и применить</button>
+      <span class="msg" id="ls-msg" role="status"></span>
+    </div>
+  </section>
+
+  <section class="block" aria-labelledby="lg-title">
+    <div class="block-head">
+      <h2 id="lg-title">Журнал zapret</h2>
+      <span class="meta">последние строки journalctl -u zapret</span>
+      <button type="button" id="log-refresh">Обновить</button>
+    </div>
+    <pre class="log" id="log">загрузка…</pre>
+  </section>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const RES = { ok: "открылся", blocked: "блок", cut: "обрыв", ssl: "подмена", dns: "нет DNS", error: "ошибка" };
+  const SVC = { ok: ["good", "работает"], partial: ["warning", "частично"], blocked: ["critical", "не работает"] };
+  let last = null, strategiesCache = [], strategiesGame = null, listsDirty = false, settingsDirty = false;
+  let jobSeen;  // время окончания уже показанного дела
+
+  $("home").href = `${location.protocol}//${location.hostname}:45461/`;
+
+  function timeout(ms) {
+    if (AbortSignal.timeout) return AbortSignal.timeout(ms);
+    const c = new AbortController();
+    setTimeout(() => c.abort(), ms);
+    return c.signal;
+  }
+  async function api(url, options = {}) {
+    const r = await fetch(url, { cache: "no-store", signal: timeout(15000), ...options });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
+    return r.headers.get("Content-Type")?.startsWith("application/json") ? r.json() : r.text();
+  }
+  const post = (body) => api("api/action", { method: "POST", headers: { "Content-Type": "application/json" },
+                                             body: JSON.stringify(body) });
+  const errText = (e) => e.name === "TypeError" ? "нет связи с Pi" : e.message;
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function ago(ts) {
+    const s = Math.max(0, Date.now() / 1000 - ts);
+    if (s < 60) return "только что";
+    if (s < 3600) return `${Math.round(s / 60)} мин назад`;
+    if (s < 86400) return `${Math.round(s / 3600)} ч назад`;
+    return new Date(ts * 1000).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  }
+  function status(el_, level, text) {
+    el_.replaceChildren(el("span", `dot ${level}`), el("span", null, text));
+  }
+  function msg(id, text, error) {
+    $(id).className = error ? "msg error" : "msg";
+    $(id).textContent = text;
+  }
+  function svcChip(name, value) {
+    const [level, text] = SVC[value] || ["", "—"];
+    const c = el("span", "chip");
+    c.append(el("span", `dot ${level}`), el("span", null, `${name}: ${text}`));
+    return c;
+  }
+  function svcCell(value) {
+    if (!value) return el("span", "res none", "—");
+    const [level, text] = SVC[value];
+    const s = el("span", "status svc");
+    s.append(el("span", `dot ${level}`), el("span", null, text));
+    return s;
+  }
+
+  // ---------- состояние ----------
+  async function refresh() {
+    let s;
+    try {
+      s = await api("api/status");
+    } catch (e) {
+      status($("hdr-state"), "warning", "нет связи с Pi");
+      return;
+    }
+    last = s;
+    const on = s.settings.enabled, active = s.service.active === "active";
+    const ok = on && active && s.service.nfqws > 0;
+    status($("hdr-state"), ok ? "good" : on ? "critical" : "", ok ? "обход работает" : on ? "zapret не запущен" : "обход выключен");
+    if (document.activeElement !== $("enabled")) $("enabled").checked = on;
+    $("enabled-text").textContent = on ? "включён" : "выключен";
+    $("svc-sub").textContent = on ? (active ? `nfqws: ${s.service.nfqws} процесс` : `служба: ${s.service.active}`)
+      : "трафик идёт напрямую, без обхода";
+    $("cur-strategy").textContent = s.settings.strategy;
+    $("cur-sub").textContent = [s.settings.game !== "off" && `игровой фильтр: ${s.settings.game}`,
+                                `IPSet: ${s.settings.ipset}`].filter(Boolean).join(" · ");
+    $("versions").textContent = `zapret ${s.versions.zapret || "?"}`;
+    const lv = s.latest?.version;
+    $("ver-sub").replaceChildren(el("span", null, `стратегии flowseal ${s.versions.flowseal}`));
+    if (lv && lv !== s.versions.flowseal) {
+      const b = el("button", null, `обновить до ${lv}`);
+      b.style.marginTop = "4px";
+      b.addEventListener("click", () => run({ action: "update" }, "st-msg"));
+      $("ver-sub").append(document.createElement("br"), b);
+    } else {
+      const b = el("a", null, lv ? " · последняя" : " · проверить обновление");
+      b.href = "#";
+      b.addEventListener("click", async (e) => {
+        e.preventDefault();
+        msg("st-msg", "спрашиваю GitHub…");
+        try { await post({ action: "update-check" }); msg("st-msg", ""); } catch (err) { msg("st-msg", errText(err), true); }
+        refresh();
+      });
+      $("ver-sub").append(b);
+    }
+    renderCheck(s.check);
+    renderJob(s.job);
+    if (!settingsDirty) {
+      $("game").value = s.settings.game;
+      $("ipset").value = s.settings.ipset;
+    }
+    if (strategiesGame !== s.settings.game) await loadStrategies(s.settings.game);
+    renderStrategies();
+  }
+
+  function renderJob(job) {
+    const running = job?.state === "running";
+    $("job").hidden = !job || (!running && job.finished && Date.now() / 1000 - job.finished > 30);
+    for (const id of ["check", "sweep", "save-settings", "save-lists", "enabled"]) $(id).disabled = running;
+    document.querySelectorAll("#strategies button").forEach((b) => { b.disabled = running; });
+    if (!job) return;
+    $("job-spin").hidden = !running;
+    $("job-cancel").hidden = !(running && job.kind === "sweep");
+    $("job-bar").hidden = !(job.kind === "sweep" && job.total);
+    $("job-bar").firstElementChild.style.width = job.total ? `${(job.progress / job.total) * 100}%` : "0";
+    const title = job.title[0].toUpperCase() + job.title.slice(1);
+    $("job-text").textContent = running ? `${title}: ${job.text || "…"}`
+      : job.state === "failed" ? `${title} не удалась: ${job.error}` : `${title}: ${job.text || "готово"}`;
+    $("job-text").style.color = job.state === "failed" ? "var(--status-critical)" : "";
+    if (!running && job.finished !== jobSeen) {
+      if (jobSeen !== undefined && (job.kind === "apply" || job.kind === "update")) loadLog();
+      if (jobSeen !== undefined && job.kind === "apply") { settingsDirty = false; listsDirty = false; loadLists(); }
+      if (jobSeen !== undefined && job.kind === "check-strategy" && job.rows) renderRows(job.rows, `проверка «${job.text.split("»")[0].slice(1)}» отдельно от Wi-Fi`);
+      jobSeen = job.finished;
+    }
+  }
+
+  // ---------- проверка ----------
+  let shownRowsNote = null, shownCheck = null;
+  function renderCheck(check, force) {
+    if (!check) return;
+    $("chk-sub").textContent = `${ago(check.time)}${check.strategy ? ` · ${check.strategy}` : " · без обхода"}`;
+    if (!force && shownCheck === check.time) return;  // таблицу перестраиваем, только когда проверка новая
+    shownCheck = check.time;
+    $("chk-score").textContent = `${check.score} из ${check.total}`;
+    $("services").replaceChildren(...Object.entries(check.summary).map(([k, v]) => svcChip(k, v)));
+    if (!shownRowsNote) renderRows(check.rows, null);
+  }
+  function renderRows(rows, note) {
+    shownRowsNote = note;
+    const table = el("table");
+    const head = el("tr");
+    for (const [t, cls] of [["Цель", ""], ["TLS 1.2", ""], ["TLS 1.3", ""], ["Ping", "num"]]) head.append(el("th", cls, t));
+    const thead = el("thead");
+    thead.append(head);
+    table.append(thead);
+    const body = el("tbody");
+    for (const r of rows) {
+      const tr = el("tr");
+      const name = el("td");
+      name.append(el("span", null, r.name), el("span", "url", r.url));
+      tr.append(name);
+      if (r.ping) {
+        tr.append(el("td", null, ""), el("td", null, ""));
+        const td = el("td", "num");
+        td.append(el("span", `res ${r.ping.status}`, r.ping.status === "ok" ? `${r.ping.ms} мс` : "нет ответа"));
+        tr.append(td);
+      } else {
+        for (const t of ["TLS1.2", "TLS1.3"]) {
+          const v = r[t], td = el("td");
+          const label = !v ? "—" : v.status === "ok" ? `${RES.ok}${v.kb ? ` · ${v.kb} КБ` : ""}`
+            : v.status === "cut" ? `${RES.cut} на ${v.kb} КБ` : RES[v.status] || v.status;
+          const badge = el("span", `res ${v ? v.status : "none"}`, label);
+          if (v?.time) badge.title = `${v.time} с, HTTP ${v.code}`;
+          td.append(badge);
+          tr.append(td);
+        }
+        tr.append(el("td", "num", ""));
+      }
+      body.append(tr);
+    }
+    table.append(body);
+    const box = $("check-table");
+    box.replaceChildren(table);
+    if (note) {
+      const n = el("div", "empty", `Показана ${note}. `);
+      const back = el("a", null, "Вернуть последнюю проверку Wi-Fi");
+      back.href = "#";
+      back.addEventListener("click", (e) => { e.preventDefault(); shownRowsNote = null; renderCheck(last?.check, true); });
+      n.append(back);
+      box.prepend(n);
+    }
+  }
+
+  // ---------- стратегии ----------
+  async function loadStrategies(game) {
+    try {
+      strategiesCache = await api("api/strategies");
+      strategiesGame = game;
+    } catch (e) {
+      $("strategies").replaceChildren(el("tr")).firstChild.append(el("td", "empty", `не загрузились: ${errText(e)}`));
+    }
+  }
+  let shownStrategies = null;
+  function renderStrategies() {
+    if (!last || !strategiesCache.length) return;
+    const scores = last.scores || {}, cur = last.settings.strategy, best = last.best;
+    // перестраиваем, только если что-то поменялось: иначе свернутся раскрытые аргументы и пропадёт фокус
+    const key = JSON.stringify([scores, cur, best, last.job?.state, strategiesGame, last.swept]);
+    if (key === shownStrategies) return;
+    shownStrategies = key;
+    $("sg-meta").textContent = last.swept ? `подбор: ${ago(last.swept)}${best ? ` · лучшая — «${best}»` : ""}`
+      : "из flowseal/zapret-discord-youtube, переведены для nfqws на Linux";
+    const order = [...strategiesCache].sort((a, b) =>
+      (scores[b.name]?.score ?? -1) - (scores[a.name]?.score ?? -1) || strategiesCache.indexOf(a) - strategiesCache.indexOf(b));
+    const running = last.job?.state === "running";
+    $("strategies").replaceChildren(...order.map((s) => {
+      const tr = el("tr", s.name === cur ? "current" : "");
+      const sc = scores[s.name];
+      const name = el("td");
+      name.append(el("span", null, s.name));
+      if (s.name === cur) name.append(el("span", "tag cur", "включена"));
+      if (s.name === best && sc) name.append(el("span", "tag best", "лучшая"));
+      for (const n of s.notes || []) name.append(el("span", "note", n));
+      if (s.error) name.append(el("span", "note", `не разобрана: ${s.error}`));
+      else {
+        const d = el("details", "args");
+        d.append(el("summary", null, `${s.profiles.length} профилей · TCP ${s.tcp} · UDP ${s.udp}`),
+                 el("pre", null, s.profiles.map((p) => p.join(" ")).join("\n--new\n")));
+        name.append(d);
+      }
+      const res = el("td");
+      if (sc) {
+        const bar = el("span", "scorebar");
+        const track = el("span", "track"), fill = el("span");
+        fill.style.width = `${(sc.score / sc.total) * 100}%`;
+        track.append(fill);
+        bar.append(track, el("span", null, `${sc.score}/${sc.total}`));
+        bar.title = `проверено ${ago(sc.time)}`;
+        res.append(bar);
+      } else res.append(el("span", "res none", "не проверялась"));
+      const dc = el("td", "hide-sm"), yt = el("td", "hide-sm");
+      dc.append(svcCell(sc?.summary?.Discord));
+      yt.append(svcCell(sc?.summary?.YouTube));
+      const acts = el("td", "num");
+      const box = el("div", "acts");
+      const test = el("button", null, "Проверить");
+      test.disabled = running || Boolean(s.error);
+      test.addEventListener("click", () => run({ action: "check-strategy", name: s.name }, "st-msg"));
+      box.append(test);
+      if (s.name !== cur) {
+        const use = el("button", "primary", "Включить");
+        use.disabled = running || Boolean(s.error);
+        use.addEventListener("click", () => run({ action: "apply", settings: { strategy: s.name, enabled: true } }, "st-msg"));
+        box.append(use);
+      }
+      acts.append(box);
+      tr.append(name, res, dc, yt, acts);
+      return tr;
+    }));
+  }
+
+  // ---------- действия ----------
+  async function run(body, msgId) {
+    msg(msgId, "");
+    try {
+      await post(body);
+      setTimeout(refresh, 300);
+      setTimeout(refresh, 1500);
+    } catch (e) {
+      msg(msgId, `не получилось: ${errText(e)}`, true);
+    }
+  }
+  $("check").addEventListener("click", () => { shownRowsNote = null; run({ action: "check" }, "st-msg"); });
+  $("sweep").addEventListener("click", () => run({ action: "sweep" }, "st-msg"));
+  $("job-cancel").addEventListener("click", () => run({ action: "cancel" }, "st-msg"));
+  $("enabled").addEventListener("change", (e) => run({ action: "apply", settings: { enabled: e.target.checked } }, "st-msg"));
+  for (const id of ["game", "ipset"]) $(id).addEventListener("change", () => { settingsDirty = true; });
+  $("save-settings").addEventListener("click", () =>
+    run({ action: "apply", settings: { game: $("game").value, ipset: $("ipset").value } }, "set-msg"));
+
+  const LISTS = ["list-general-user.txt", "list-exclude-user.txt", "ipset-exclude-user.txt"];
+  async function loadLists() {
+    if (listsDirty) return;
+    try {
+      const l = await api("api/lists");
+      for (const name of LISTS) $(name).value = l[name] || "";
+    } catch (e) {
+      msg("ls-msg", `списки не загрузились: ${errText(e)}`, true);
+    }
+  }
+  for (const name of LISTS) $(name).addEventListener("input", () => { listsDirty = true; });
+  $("save-lists").addEventListener("click", () => {
+    const lists = Object.fromEntries(LISTS.map((n) => [n, $(n).value]));
+    run({ action: "lists", lists }, "ls-msg");
+  });
+
+  async function loadLog() {
+    try { $("log").textContent = (await api("api/log")).trim() || "пусто"; }
+    catch (e) { $("log").textContent = `не загрузился: ${errText(e)}`; }
+    $("log").scrollTop = $("log").scrollHeight;
+  }
+  $("log-refresh").addEventListener("click", loadLog);
+
+  // Пока идёт дело — опрашиваем часто, иначе редко: состояние меняется только от наших же кнопок.
+  async function loop() {
+    if (!document.hidden) await refresh();
+    setTimeout(loop, last?.job?.state === "running" ? 1500 : 8000);
+  }
+  loop();
+  loadLists();
+  loadLog();
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+</script>
+</body>
+</html>

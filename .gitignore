@@ -5,6 +5,9 @@
 !*.env.example
 # Номера телефонов для SMS-оповещений
 alerts/settings.json
+# zapret: выбранная стратегия и итоги проверок этой Pi
+zapret/settings.json
+zapret/state.json
 # Сессии входа в панель
 webcam/sessions.json
 # Записи камеры
