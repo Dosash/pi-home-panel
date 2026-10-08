@@ -105,6 +105,9 @@ MIT — см. `LICENSE`. Исключение: `webcam/vendor/segno` — биб�
 [zapret](https://github.com/bol-van/zapret) и стратегии [flowseal](https://github.com/flowseal/zapret-discord-youtube)
 в репозиторий не входят — скачиваются при установке, у них свои лицензии.
 
+Если используете проект или его части, пожалуйста, укажите автора и ссылку на репозиторий:
+Dosash, <https://github.com/Dosash/pi-home-panel>. Это просьба, а не условие: MIT этого не требует.
+
 ## Тесты
 
 ```sh
