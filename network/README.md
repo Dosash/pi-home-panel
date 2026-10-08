@@ -21,8 +21,11 @@ LTE-модем (eth1) ──► Pi ─┬─► Wi-Fi «PiHome» (wlan0): инт
 - **NetworkManager**, оба профиля в режиме `shared`: NM сам запускает для них dnsmasq (DHCP и DNS)
   и NAT.
   - `lan-cable` — `eth0`, `10.10.0.1/24`, адреса клиентам `.10–.254`.
-  - `hotspot` — `wlan0`, точка доступа 2,4 ГГц, канал 6, WPA2 (CCMP, PMF выключен — встроенный
-    Wi-Fi Pi с ним капризничает), `10.20.0.1/24`.
+  - `hotspot` — `wlan0`, точка доступа 2,4 ГГц, канал 6, WPA2 (CCMP, PMF «по возможности»),
+    `10.20.0.1/24`. PMF нужна: NetworkManager сам добавляет к WPA-PSK вариант WPA-PSK-SHA256,
+    а он рассчитан на PMF. С выключенной PMF ноутбуки с Windows выбирали SHA256 и не проходили
+    обмен ключами («Не удается подключиться к этой сети»); телефоны и Mac выбирали обычный WPA-PSK.
+    С `optional` каждое устройство подключается как умеет.
 - `dnsmasq-shared.conf` (установлен в `/etc/NetworkManager/dnsmasq-shared.d/pi-network.conf`):
   DNS для устройств в Wi-Fi — AdGuard Home на `10.20.0.1:53` (`../adguard`), а dnsmasq держит свой DNS
   на порту 5354 только для локального (`pi.lan`, имена устройств) — у него AdGuard и спрашивает их.
@@ -84,7 +87,7 @@ sudo nmcli connection add type wifi ifname wlan0 con-name hotspot ssid PiHome \
   connection.autoconnect-priority 100 802-11-wireless.mode ap 802-11-wireless.band bg 802-11-wireless.channel 6 \
   ipv4.method shared ipv4.addresses 10.20.0.1/24 ipv6.method disabled \
   wifi-sec.key-mgmt wpa-psk wifi-sec.proto rsn wifi-sec.pairwise ccmp wifi-sec.group ccmp \
-  wifi-sec.pmf disable wifi-sec.psk 'ПАРОЛЬ'
+  wifi-sec.pmf optional wifi-sec.psk 'ПАРОЛЬ'
 sudo install -m 644 hotspot-forward.service /etc/systemd/system/
 sudo systemctl daemon-reload && sudo systemctl enable --now hotspot-forward
 ```
